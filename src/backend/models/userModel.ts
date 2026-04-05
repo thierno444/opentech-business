@@ -1,16 +1,34 @@
-import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
+import mongoose, { Document, Schema } from "mongoose";
+import bcrypt from "bcryptjs";
 
-const UserSchema = new mongoose.Schema({
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  role: { type: String, enum: ['admin', 'user'], default: 'user' },
-}, { timestamps: true });
+export interface IUser extends Document {
+  email: string;
+  password: string;
+  role: "admin" | "user";
+  comparePassword(candidatePassword: string): Promise<boolean>;
+}
 
-UserSchema.pre('save', async function(this: any, next: any) {
-  if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 10);
-  next();
+const UserSchema = new Schema<IUser>(
+  {
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    password: { type: String, required: true },
+    role: { type: String, enum: ["admin", "user"], default: "user" },
+  },
+  { timestamps: true }
+);
+
+// ✅ Hook de hash sans callback `next`
+UserSchema.pre<IUser>("save", async function () {
+  // `this` représente le document user
+  if (!this.isModified("password")) return;
+
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
 });
 
-export const User = mongoose.model('User', UserSchema);
+// ✅ Méthode pour comparer les mots de passe
+UserSchema.methods.comparePassword = async function (candidatePassword: string) {
+  return bcrypt.compare(candidatePassword, this.password);
+};
+
+export const User = mongoose.model<IUser>("User", UserSchema);

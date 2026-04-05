@@ -99,11 +99,16 @@ export default function Home() {
             <div className="pt-8 flex items-center gap-8 border-t border-white/5">
               <div className="flex -space-x-4">
                 {[1, 2, 3, 4].map(i => (
-                  <img key={i} src={`https://i.pravatar.cc/100?u=${i}`} className="w-12 h-12 rounded-full border-4 border-primary" />
+                  <img 
+                    key={i} 
+                    src={`/images/avatars/client${i}.jpg`}
+                    className="w-12 h-12 rounded-full border-4 border-primary" 
+                    alt={`Client ${i}`}
+                  />
                 ))}
               </div>
               <div className="text-sm">
-                <div className="font-black text-white">+500 Clients Satisfaits</div>
+                <div className="font-black text-white">+50 Clients Satisfaits</div>
                 <div className="text-text-silver/40">À Thiès, Dakar et partout au Sénégal</div>
               </div>
             </div>
@@ -117,7 +122,7 @@ export default function Home() {
           >
             <div className="relative z-10 rounded-[60px] overflow-hidden border border-white/10 shadow-2xl animate-float">
               <img
-                src="https://picsum.photos/seed/opentech-hero/1200/1400"
+                src="/images/hero.jpg"
                 alt="OpenTech Business"
                 className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-1000"
                 referrerPolicy="no-referrer"
@@ -156,18 +161,18 @@ export default function Home() {
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-6 pt-12">
                 <div className="h-80 rounded-[40px] overflow-hidden border border-white/10 group">
-                  <img src="https://picsum.photos/seed/thies/600/800" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" referrerPolicy="no-referrer" />
+                  <img src="/images/about-1.jpg" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" referrerPolicy="no-referrer" />
                 </div>
                 <div className="h-60 rounded-[40px] overflow-hidden border border-white/10 group">
-                  <img src="https://picsum.photos/seed/dakar/600/600" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" referrerPolicy="no-referrer" />
+                  <img src="/images/about-2.jpg" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" referrerPolicy="no-referrer" />
                 </div>
               </div>
               <div className="space-y-6">
                 <div className="h-60 rounded-[40px] overflow-hidden border border-white/10 group">
-                  <img src="https://picsum.photos/seed/office/600/600" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" referrerPolicy="no-referrer" />
+                  <img src="/images/about-3.jpg" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" referrerPolicy="no-referrer" />
                 </div>
                 <div className="h-80 rounded-[40px] overflow-hidden border border-white/10 group">
-                  <img src="https://picsum.photos/seed/team/600/800" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" referrerPolicy="no-referrer" />
+                  <img src="/images/about-4.jpg" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" referrerPolicy="no-referrer" />
                 </div>
               </div>
             </div>
