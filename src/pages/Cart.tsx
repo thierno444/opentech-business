@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ShoppingBag, Trash2, Plus, Minus, ArrowRight, CreditCard, MessageCircle, QrCode } from 'lucide-react';
+import { ShoppingBag, Trash2, Plus, Minus, ArrowRight, CreditCard, MessageCircle, QrCode, User } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { formatPrice } from '../lib/utils';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useNotification } from '../context/NotificationContext';
+import { useUser } from '../context/UserContext';
 import QRCodePayment from '../components/QRCodePayment';
+import ClientInfoForm from '../components/ClientInfoForm';
 
-// Fonction WhatsApp intégrée
 const sendWhatsAppMessage = (phoneNumber: string, message: string) => {
   const cleanPhone = phoneNumber.replace('+', '').replace(/\s/g, '');
   const encodedMessage = encodeURIComponent(message);
@@ -18,19 +19,44 @@ const sendWhatsAppMessage = (phoneNumber: string, message: string) => {
 
 export default function Cart() {
   const { cart, removeFromCart, updateQuantity, totalPrice, totalItems, clearCart } = useCart();
+  const { user } = useUser();
   const { showSuccess, showError } = useNotification();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [showQRPayment, setShowQRPayment] = useState(false);
+  const [currentOrderId, setCurrentOrderId] = useState('');
+  const [clientInfo, setClientInfo] = useState({
+    name: '',
+    email: '',
+    phone: ''
+  });
 
-  const handleCheckoutWhatsApp = async () => {
+  // Charger les infos utilisateur au chargement
+  useEffect(() => {
+    if (user) {
+      setClientInfo({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || ''
+      });
+    }
+  }, [user]);
+
+  const handleClientInfoChange = (info: { name: string; email: string; phone: string }) => {
+    setClientInfo(info);
+  };
+
+  const createOrder = async () => {
     if (cart.length === 0) {
       showError("Votre panier est vide");
-      return;
+      return null;
     }
 
-    setIsCheckingOut(true);
-    const API_URL = 'http://localhost:5000';
+    if (!clientInfo.name || !clientInfo.phone) {
+      showError("Veuillez renseigner votre nom et téléphone");
+      return null;
+    }
 
+    const API_URL = 'http://localhost:5000';
     const items = cart.map(item => ({
       name: item.name,
       price: item.price,
@@ -38,9 +64,9 @@ export default function Cart() {
     }));
 
     const orderData = {
-      customerName: "Client Panier",
-      customerEmail: "client@panier.com",
-      customerPhone: "771234567",
+      customerName: clientInfo.name,
+      customerEmail: clientInfo.email || "non-renseigne@client.com",
+      customerPhone: clientInfo.phone,
       items: items,
       totalAmount: totalPrice,
       message: `Commande depuis le panier: ${cart.map(i => `${i.name} x${i.quantity}`).join(', ')}`
@@ -52,32 +78,40 @@ export default function Cart() {
         timeout: 10000,
       });
       
+      const orderId = res.data?.data?._id || res.data?._id;
+      setCurrentOrderId(orderId);
+      return orderId;
+    } catch (error: any) {
+      console.error("❌ Erreur création commande:", error);
+      showError(`❌ Erreur: ${error.response?.data?.message || error.message}`);
+      return null;
+    }
+  };
+
+  const handleCheckoutWhatsApp = async () => {
+    const orderId = await createOrder();
+    if (orderId) {
       showSuccess(`✨ Commande créée ! Total: ${formatPrice(totalPrice)}`);
       clearCart();
       
       setTimeout(() => {
         const itemsList = cart.map(item => `- ${item.name} (x${item.quantity}) : ${formatPrice(item.price * item.quantity)}`).join('\n');
-        const message = `Bonjour OpenTech Business, je souhaite valider ma commande :\n\n${itemsList}\n\nTotal : ${formatPrice(totalPrice)}\n\nMerci de me recontacter pour le paiement.`;
+        const message = `Bonjour OpenTech Business, je souhaite valider ma commande :\n\n${itemsList}\n\nTotal : ${formatPrice(totalPrice)}\n\nClient: ${clientInfo.name}\nTél: ${clientInfo.phone}\n\nMerci de me recontacter pour le paiement.`;
         sendWhatsAppMessage("221766560258", message);
       }, 1000);
-      
-    } catch (error: any) {
-      console.error("❌ Erreur commande panier:", error);
-      if (error.response) {
-        showError(`❌ Erreur ${error.response.status}: ${error.response.data.message || 'Erreur serveur'}`);
-      } else if (error.request) {
-        showError("❌ Impossible de contacter le serveur. Vérifiez qu'il tourne sur le port 5000");
-      } else {
-        showError(`❌ Erreur: ${error.message}`);
-      }
-    } finally {
-      setIsCheckingOut(false);
+    }
+  };
+
+  const handleQRPayment = async () => {
+    const orderId = await createOrder();
+    if (orderId) {
+      setShowQRPayment(true);
     }
   };
 
   const handleQRPaymentSuccess = () => {
     showSuccess(`🎉 Paiement confirmé ! Votre commande a été enregistrée.`);
-    // Optionnel: envoyer une notification WhatsApp après paiement
+    clearCart();
   };
 
   if (cart.length === 0) {
@@ -106,7 +140,6 @@ export default function Cart() {
 
   return (
     <div className="pt-40 pb-24 px-6 relative min-h-screen">
-      {/* Background Glows */}
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-accent-blue/5 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-accent-cyan/5 rounded-full blur-[120px] pointer-events-none" />
 
@@ -125,6 +158,8 @@ export default function Cart() {
                 Vider le panier
               </button>
             </div>
+
+            <ClientInfoForm onInfoChange={handleClientInfoChange} />
 
             <div className="space-y-6">
               <AnimatePresence mode="popLayout">
@@ -204,16 +239,14 @@ export default function Cart() {
               </div>
 
               <div className="space-y-3">
-                {/* Nouveau bouton Paiement par QR Code */}
                 <button 
-                  onClick={() => setShowQRPayment(true)}
+                  onClick={handleQRPayment}
                   className="w-full py-5 bg-gradient-to-r from-accent-cyan to-accent-blue rounded-2xl text-white font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 hover:scale-105 transition-all group"
                 >
                   <QrCode size={20} className="group-hover:rotate-12 transition-transform" />
                   Scanner pour payer
                 </button>
 
-                {/* Bouton WhatsApp existant */}
                 <button 
                   onClick={handleCheckoutWhatsApp}
                   disabled={isCheckingOut}
@@ -250,8 +283,23 @@ export default function Cart() {
       {/* Modal Paiement QR Code */}
       <QRCodePayment
         isOpen={showQRPayment}
-        onClose={() => setShowQRPayment(false)}
+        onClose={() => {
+          setShowQRPayment(false);
+          setCurrentOrderId('');
+        }}
         totalAmount={totalPrice}
+        orderData={{
+          orderId: currentOrderId,
+          customerName: clientInfo.name,
+          customerEmail: clientInfo.email,
+          customerPhone: clientInfo.phone,
+          items: cart.map(item => ({
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity
+          })),
+          message: `Commande depuis le panier: ${cart.map(i => `${i.name} x${i.quantity}`).join(', ')}`
+        }}
         onPaymentSuccess={handleQRPaymentSuccess}
       />
     </div>
