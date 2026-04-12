@@ -1,17 +1,87 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ShoppingBag, Trash2, Plus, Minus, ArrowRight, CreditCard, MessageCircle } from 'lucide-react';
 import { useCart } from '../context/CartContext';
-import { formatPrice, sendWhatsAppMessage } from '../lib/utils';
+import { formatPrice } from '../lib/utils';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
+import { useNotification } from '../context/NotificationContext';
+
+// Fonction WhatsApp intégrée
+const sendWhatsAppMessage = (phoneNumber: string, message: string) => {
+  const cleanPhone = phoneNumber.replace('+', '').replace(/\s/g, '');
+  const encodedMessage = encodeURIComponent(message);
+  const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
+  window.open(whatsappUrl, '_blank');
+};
 
 export default function Cart() {
   const { cart, removeFromCart, updateQuantity, totalPrice, totalItems, clearCart } = useCart();
+  const { showSuccess, showError } = useNotification();
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
 
-  const handleCheckoutWhatsApp = () => {
-    const itemsList = cart.map(item => `- ${item.name} (x${item.quantity}) : ${formatPrice(item.price * item.quantity)}`).join('\n');
-    const message = `Bonjour OpenTech Business, je souhaite valider ma commande :\n\n${itemsList}\n\nTotal : ${formatPrice(totalPrice)}\n\nMerci de me recontacter pour le paiement.`;
-    sendWhatsAppMessage("221766560258", message);
+  const handleCheckoutWhatsApp = async () => {
+    if (cart.length === 0) {
+      showError("Votre panier est vide");
+      return;
+    }
+
+    setIsCheckingOut(true);
+    const API_URL = 'http://localhost:5000';
+
+    // Préparer les items pour la commande (sans productId)
+    const items = cart.map(item => ({
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity
+    }));
+
+    const orderData = {
+      customerName: "Client Panier",
+      customerEmail: "client@panier.com",
+      customerPhone: "771234567",
+      items: items,
+      totalAmount: totalPrice,
+      message: `Commande depuis le panier: ${cart.map(i => `${i.name} x${i.quantity}`).join(', ')}`
+    };
+
+    console.log("🛒 Commande depuis panier:", orderData);
+
+    try {
+      const res = await axios.post(`${API_URL}/api/orders`, orderData, {
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        timeout: 10000,
+      });
+      
+      console.log("✅ Commande panier créée:", res.data);
+      showSuccess(`✨ Commande créée ! Total: ${formatPrice(totalPrice)}`);
+      
+      // Vider le panier après commande réussie
+      clearCart();
+      
+      // WhatsApp après 1 seconde
+      setTimeout(() => {
+        const itemsList = cart.map(item => `- ${item.name} (x${item.quantity}) : ${formatPrice(item.price * item.quantity)}`).join('\n');
+        const message = `Bonjour OpenTech Business, je souhaite valider ma commande :\n\n${itemsList}\n\nTotal : ${formatPrice(totalPrice)}\n\nMerci de me recontacter pour le paiement.`;
+        sendWhatsAppMessage("221766560258", message);
+      }, 1000);
+      
+    } catch (error: any) {
+      console.error("❌ Erreur commande panier:", error);
+      
+      if (error.response) {
+        showError(`❌ Erreur ${error.response.status}: ${error.response.data.message || 'Erreur serveur'}`);
+      } else if (error.request) {
+        showError("❌ Impossible de contacter le serveur. Vérifiez qu'il tourne sur le port 5000");
+      } else {
+        showError(`❌ Erreur: ${error.message}`);
+      }
+    } finally {
+      setIsCheckingOut(false);
+    }
   };
 
   if (cart.length === 0) {
@@ -72,7 +142,11 @@ export default function Cart() {
                     className="glass rounded-3xl p-6 flex flex-col sm:flex-row items-center gap-6 border-white/5"
                   >
                     <div className="w-24 h-24 rounded-2xl overflow-hidden shrink-0">
-                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                      <img 
+                        src={item.image || item.images?.[0] || "https://picsum.photos/seed/default/100/100"} 
+                        alt={item.name} 
+                        className="w-full h-full object-cover" 
+                      />
                     </div>
                     
                     <div className="flex-1 text-center sm:text-left space-y-1">
@@ -136,9 +210,16 @@ export default function Cart() {
               <div className="space-y-4">
                 <button 
                   onClick={handleCheckoutWhatsApp}
-                  className="btn-primary w-full py-5 flex items-center justify-center gap-3 group"
+                  disabled={isCheckingOut}
+                  className="btn-primary w-full py-5 flex items-center justify-center gap-3 group disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Commander via WhatsApp <MessageCircle size={20} />
+                  {isCheckingOut ? (
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      Commander via WhatsApp <MessageCircle size={20} />
+                    </>
+                  )}
                 </button>
                 
                 <button className="w-full py-5 glass border-white/10 rounded-2xl text-text-silver/40 font-bold flex items-center justify-center gap-3 cursor-not-allowed opacity-50">

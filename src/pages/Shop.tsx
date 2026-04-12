@@ -9,8 +9,9 @@ import {
   CheckCircle2,
   X,
 } from "lucide-react";
-import { formatPrice, sendWhatsAppMessage, cn } from "../lib/utils";
+import { formatPrice, cn } from "../lib/utils";
 import { useCart } from "../context/CartContext";
+import { useNotification } from "../context/NotificationContext";
 
 interface Product {
   _id: string;
@@ -18,10 +19,18 @@ interface Product {
   description: string;
   price: number;
   category: string;
-  images?: string[]; // tableau d’images
-  image?: string; // compatibilité anciens produits
+  images?: string[];
+  image?: string;
   features: string[];
 }
+
+// Fonction WhatsApp intégrée
+const sendWhatsAppMessage = (phoneNumber: string, message: string) => {
+  const cleanPhone = phoneNumber.replace('+', '').replace(/\s/g, '');
+  const encodedMessage = encodeURIComponent(message);
+  const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
+  window.open(whatsappUrl, '_blank');
+};
 
 export default function Shop() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -30,15 +39,20 @@ export default function Shop() {
   const [category, setCategory] = useState("All");
   const [showModal, setShowModal] = useState(false);
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  const [loadingProduct, setLoadingProduct] = useState<string | null>(null);
   const { addToCart } = useCart();
+  const { showSuccess, showError, showInfo } = useNotification();
 
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const { data } = await axios.get("/api/products");
+        const API_URL = 'http://localhost:5000';
+        const { data } = await axios.get(`${API_URL}/api/products`);
+        console.log("Produits chargés:", data.length);
         setProducts(data);
       } catch (error) {
         console.error("Error fetching products", error);
+        showError("Erreur lors du chargement des produits");
       } finally {
         setLoading(false);
       }
@@ -46,7 +60,6 @@ export default function Shop() {
     fetchProducts();
   }, []);
 
-  // 🔹 Compatibilité : renvoie toujours un tableau d'images (même si le produit a encore "image" au lieu de "images")
   const normalizeImages = (product: Product): string[] => {
     if (product.images && product.images.length > 0) return product.images;
     if (product.image) return [product.image];
@@ -64,11 +77,55 @@ export default function Shop() {
 
   const categories = ["All", ...new Set(products.map((p) => p.category))];
 
-  const handleWhatsAppOrder = (product: Product) => {
-    const message = `Bonjour OpenTech Business, je souhaite commander le pack : ${product.name} (${formatPrice(
-      product.price
-    )})`;
-    sendWhatsAppMessage("221766560258", message);
+  const handleWhatsAppOrder = async (product: Product) => {
+    console.log("🚨 BOUTON CLIQUE - produit:", product.name);
+    
+    setLoadingProduct(product._id);
+    const API_URL = 'http://localhost:5000';
+    
+    const orderData = {
+      customerName: "Client Boutique",
+      customerEmail: "client@boutique.com", 
+      customerPhone: "771234567",
+      items: [
+        {
+          name: product.name,
+          price: product.price,
+          quantity: 1,
+        },
+      ],
+      totalAmount: product.price,
+      message: `Commande du produit : ${product.name}`,
+    };
+
+    try {
+      const res = await axios.post(`${API_URL}/api/orders`, orderData, {
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        timeout: 10000,
+      });
+      
+      showSuccess(`✨ Commande créée ! Total: ${formatPrice(product.price)}`);
+      
+      setTimeout(() => {
+        const whatsappMessage = `Bonjour OpenTech Business, je souhaite commander : ${product.name} pour ${formatPrice(product.price)}`;
+        sendWhatsAppMessage("221766560258", whatsappMessage);
+      }, 1000);
+      
+    } catch (error: any) {
+      console.error("❌ Erreur:", error);
+      if (error.response) {
+        showError(`❌ Erreur ${error.response.status}: ${error.response.data.message || 'Erreur serveur'}`);
+      } else if (error.request) {
+        showError("❌ Impossible de contacter le serveur");
+      } else {
+        showError(`❌ Erreur: ${error.message}`);
+      }
+    } finally {
+      setLoadingProduct(null);
+    }
   };
 
   const renderImageArea = (imgs: string[], productName: string) => {
@@ -82,7 +139,6 @@ export default function Shop() {
         />
       );
     }
-    // si plusieurs → carousel
     return (
       <motion.div
         className="absolute inset-0 flex"
@@ -106,6 +162,17 @@ export default function Shop() {
       </motion.div>
     );
   };
+
+  if (loading) {
+    return (
+      <div className="pt-32 pb-24 px-6 min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 border-4 border-accent-cyan/20 border-t-accent-cyan rounded-full animate-spin mx-auto"></div>
+          <p className="text-text-silver/60">Chargement des produits...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="pt-32 pb-24 px-6 relative">
@@ -147,7 +214,7 @@ export default function Shop() {
                 key={cat}
                 onClick={() => setCategory(cat)}
                 className={cn(
-                  "px-8 py-4 rounded-2xl text-sm font-black uppercase tracking-widest whitespace-nowrap",
+                  "px-8 py-4 rounded-2xl text-sm font-black uppercase tracking-widest whitespace-nowrap transition-all",
                   category === cat
                     ? "bg-accent-blue text-white glow-blue"
                     : "glass border-white/5 text-text-silver/60 hover:bg-white/10"
@@ -172,7 +239,7 @@ export default function Shop() {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
                   whileHover={{ y: -15 }}
-                  className="glass rounded-[40px] overflow-hidden flex flex-col group border-white/5 hover:border-accent-cyan/30 transition-all duration-500"
+                  className="glass rounded-[40px] overflow-hidden flex flex-col group border-white/5 hover:border-accent-cyan/30 transition-all duration-500 cursor-pointer"
                   onClick={() => {
                     if (imgs.length) {
                       setSelectedImages(imgs);
@@ -232,19 +299,26 @@ export default function Shop() {
                           onClick={(e) => {
                             e.stopPropagation();
                             addToCart(product);
+                            showInfo(`🛒 ${product.name} ajouté au panier`);
                           }}
-                          className="w-12 h-12 glass border-white/10 rounded-xl text-accent-cyan hover:bg-accent-cyan hover:text-white flex items-center justify-center"
+                          className="w-12 h-12 glass border-white/10 rounded-xl text-accent-cyan hover:bg-accent-cyan hover:text-white flex items-center justify-center transition-all"
                         >
                           <ShoppingCart size={20} />
                         </button>
                         <button
-                          onClick={(e) => {
+                          onClick={async (e) => {
                             e.stopPropagation();
-                            handleWhatsAppOrder(product);
+                            e.preventDefault();
+                            await handleWhatsAppOrder(product);
                           }}
-                          className="w-12 h-12 bg-accent-orange rounded-xl text-white glow-orange hover:scale-110 flex items-center justify-center"
+                          disabled={loadingProduct === product._id}
+                          className="w-12 h-12 bg-accent-orange rounded-xl text-white glow-orange hover:scale-110 flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <MessageCircle size={20} />
+                          {loadingProduct === product._id ? (
+                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          ) : (
+                            <MessageCircle size={20} />
+                          )}
                         </button>
                       </div>
                     </div>
@@ -272,7 +346,7 @@ export default function Shop() {
             >
               <button
                 onClick={() => setShowModal(false)}
-                className="absolute top-4 right-4 text-white hover:text-red-400"
+                className="absolute top-4 right-4 text-white hover:text-red-400 z-10"
               >
                 <X size={28} />
               </button>
