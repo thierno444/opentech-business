@@ -108,7 +108,7 @@ export default function Home() {
                 ))}
               </div>
               <div className="text-sm">
-                <div className="font-black text-white">+50 Clients Satisfaits</div>
+                <div className="font-black text-white">+100 Clients Satisfaits</div>
                 <div className="text-text-silver/40">À Thiès, Dakar et partout au Sénégal</div>
               </div>
             </div>

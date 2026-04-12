@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ShoppingBag, Trash2, Plus, Minus, ArrowRight, CreditCard, MessageCircle } from 'lucide-react';
+import { ShoppingBag, Trash2, Plus, Minus, ArrowRight, CreditCard, MessageCircle, QrCode } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { formatPrice } from '../lib/utils';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useNotification } from '../context/NotificationContext';
+import QRCodePayment from '../components/QRCodePayment';
 
 // Fonction WhatsApp intégrée
 const sendWhatsAppMessage = (phoneNumber: string, message: string) => {
@@ -19,6 +20,7 @@ export default function Cart() {
   const { cart, removeFromCart, updateQuantity, totalPrice, totalItems, clearCart } = useCart();
   const { showSuccess, showError } = useNotification();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [showQRPayment, setShowQRPayment] = useState(false);
 
   const handleCheckoutWhatsApp = async () => {
     if (cart.length === 0) {
@@ -29,7 +31,6 @@ export default function Cart() {
     setIsCheckingOut(true);
     const API_URL = 'http://localhost:5000';
 
-    // Préparer les items pour la commande (sans productId)
     const items = cart.map(item => ({
       name: item.name,
       price: item.price,
@@ -45,24 +46,15 @@ export default function Cart() {
       message: `Commande depuis le panier: ${cart.map(i => `${i.name} x${i.quantity}`).join(', ')}`
     };
 
-    console.log("🛒 Commande depuis panier:", orderData);
-
     try {
       const res = await axios.post(`${API_URL}/api/orders`, orderData, {
-        headers: { 
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
         timeout: 10000,
       });
       
-      console.log("✅ Commande panier créée:", res.data);
       showSuccess(`✨ Commande créée ! Total: ${formatPrice(totalPrice)}`);
-      
-      // Vider le panier après commande réussie
       clearCart();
       
-      // WhatsApp après 1 seconde
       setTimeout(() => {
         const itemsList = cart.map(item => `- ${item.name} (x${item.quantity}) : ${formatPrice(item.price * item.quantity)}`).join('\n');
         const message = `Bonjour OpenTech Business, je souhaite valider ma commande :\n\n${itemsList}\n\nTotal : ${formatPrice(totalPrice)}\n\nMerci de me recontacter pour le paiement.`;
@@ -71,7 +63,6 @@ export default function Cart() {
       
     } catch (error: any) {
       console.error("❌ Erreur commande panier:", error);
-      
       if (error.response) {
         showError(`❌ Erreur ${error.response.status}: ${error.response.data.message || 'Erreur serveur'}`);
       } else if (error.request) {
@@ -82,6 +73,11 @@ export default function Cart() {
     } finally {
       setIsCheckingOut(false);
     }
+  };
+
+  const handleQRPaymentSuccess = () => {
+    showSuccess(`🎉 Paiement confirmé ! Votre commande a été enregistrée.`);
+    // Optionnel: envoyer une notification WhatsApp après paiement
   };
 
   if (cart.length === 0) {
@@ -207,17 +203,27 @@ export default function Cart() {
                 </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
+                {/* Nouveau bouton Paiement par QR Code */}
+                <button 
+                  onClick={() => setShowQRPayment(true)}
+                  className="w-full py-5 bg-gradient-to-r from-accent-cyan to-accent-blue rounded-2xl text-white font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 hover:scale-105 transition-all group"
+                >
+                  <QrCode size={20} className="group-hover:rotate-12 transition-transform" />
+                  Scanner pour payer
+                </button>
+
+                {/* Bouton WhatsApp existant */}
                 <button 
                   onClick={handleCheckoutWhatsApp}
                   disabled={isCheckingOut}
-                  className="btn-primary w-full py-5 flex items-center justify-center gap-3 group disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-5 glass border-white/10 rounded-2xl text-accent-orange font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 hover:bg-accent-orange/10 transition-all disabled:opacity-50"
                 >
                   {isCheckingOut ? (
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <div className="w-5 h-5 border-2 border-accent-orange/30 border-t-accent-orange rounded-full animate-spin" />
                   ) : (
                     <>
-                      Commander via WhatsApp <MessageCircle size={20} />
+                      <MessageCircle size={20} /> Commander via WhatsApp
                     </>
                   )}
                 </button>
@@ -240,6 +246,14 @@ export default function Cart() {
           </div>
         </div>
       </div>
+
+      {/* Modal Paiement QR Code */}
+      <QRCodePayment
+        isOpen={showQRPayment}
+        onClose={() => setShowQRPayment(false)}
+        totalAmount={totalPrice}
+        onPaymentSuccess={handleQRPaymentSuccess}
+      />
     </div>
   );
 }

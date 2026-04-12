@@ -98,3 +98,31 @@
 ::-webkit-scrollbar-thumb {
   @apply bg-white/10 rounded-full hover:bg-white/20 transition-colors;
 }
+
+
+/* Ajoutez ces styles à la fin de votre index.css */
+
+/* Animation pour le QR Code */
+@keyframes qrPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.02);
+    opacity: 0.95;
+  }
+}
+
+.qr-animation {
+  animation: qrPulse 2s ease-in-out infinite;
+}
+
+/* Glow effects pour Wave et Orange Money */
+.glow-wave {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+}
+
+.glow-orange-money {
+  box-shadow: 0 0 20px rgba(249, 115, 22, 0.3);
+}
