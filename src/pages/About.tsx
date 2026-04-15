@@ -90,7 +90,7 @@ export default function About() {
           ))}
         </div>
 
-        {/* Mission & Vision */}
+        {/* Mission & Vision - AVEC IMAGE LOCALE */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center mb-32">
           <div className="space-y-12">
             <div className="space-y-6">
@@ -116,7 +116,15 @@ export default function About() {
 
           <div className="relative">
             <div className="rounded-[60px] overflow-hidden border border-white/10 shadow-2xl animate-float">
-              <img src="https://picsum.photos/seed/vision/1000/1200" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              {/* Image locale pour Mission/Vision - Remplacez par votre image */}
+              <img 
+                src="/images/mission-vision.jpg" 
+                alt="Mission et Vision OpenTech Business"
+                className="w-full h-[500px] object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1000&h=1200&fit=crop";
+                }}
+              />
               <div className="absolute inset-0 bg-gradient-to-t from-primary via-transparent to-transparent opacity-60" />
             </div>
             <div className="absolute -bottom-10 -left-10 p-10 glass rounded-[40px] glow-blue">
@@ -151,7 +159,7 @@ export default function About() {
           </div>
         </div>
 
-        {/* Locations Section */}
+        {/* Locations Section - AVEC IMAGE LOCALE */}
         <div className="glass rounded-[60px] p-16 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-accent-blue/10 to-accent-cyan/10" />
           <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
@@ -185,7 +193,15 @@ export default function About() {
             </div>
 
             <div className="h-96 rounded-[40px] overflow-hidden border border-white/10 grayscale hover:grayscale-0 transition-all duration-700">
-              <img src="https://picsum.photos/seed/map/1200/800" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              {/* Image locale pour Localisation - Remplacez par votre image */}
+              <img 
+                src="/images/localisation.jpg" 
+                alt="Localisation OpenTech Business - Thiès et Dakar"
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=1200&h=800&fit=crop";
+                }}
+              />
             </div>
           </div>
         </div>

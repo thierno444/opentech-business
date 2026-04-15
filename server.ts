@@ -8,7 +8,6 @@ import cors from "cors";
 import fs from "fs";
 import multer from "multer";
 import { createServer as createViteServer } from "vite";
-import { getOrders, updateOrderStatus, createOrder, deleteOrder, deleteMultipleOrders } from "./src/backend/controllers/orderController";
 
 import {
   getProducts,
@@ -18,7 +17,7 @@ import {
   deleteProduct,
 } from "./src/backend/controllers/productController";
 import { loginUser, registerUser } from "./src/backend/controllers/userController";
-import { getOrders, updateOrderStatus, createOrder } from "./src/backend/controllers/orderController";
+import { getOrders, updateOrderStatus, createOrder, deleteOrder, deleteMultipleOrders } from "./src/backend/controllers/orderController";
 import { protect, admin } from "./src/backend/middleware/authMiddleware";
 import { User } from "./src/backend/models/userModel";
 import { Product } from "./src/backend/models/productModel";
@@ -29,16 +28,13 @@ async function startServer() {
   const PORT = process.env.PORT || 5000;
 
   // Configuration CORS
-   // ============ CONFIGURATION CORS CORRIGÉE ============
-  // Version simple pour le développement
   app.use(cors({
-    origin: true, // Permet toutes les origines en développement
+    origin: true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   }));
   
-  // Gestion explicite des requêtes OPTIONS
   app.options('*', (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
@@ -93,16 +89,67 @@ async function startServer() {
   const upload = multer({ storage });
   app.use("/uploads", express.static(uploadDir));
 
-  // ============ ROUTES API (TOUTES AVANT VITE) ============
+  // ============ ROUTES API ============
   
-  // Test routes
   app.get('/api/test', (req, res) => {
     res.json({ message: 'API fonctionne!', port: PORT, timestamp: new Date() });
   });
 
   // Authentification
   app.post("/api/users/login", loginUser);
-  app.post("/api/users/register", registerUser);
+  app.post("/api/users/register", async (req, res) => {
+  try {
+    const { email, password, role } = req.body;
+    
+    // Vérifier si l'utilisateur existe déjà
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      return res.status(400).json({ message: "Cet email est déjà utilisé" });
+    }
+    
+    // Créer l'utilisateur
+    const user = await User.create({
+      email,
+      password,
+      role: role === 'admin' ? 'admin' : 'user', // Permettre la création d'admin
+    });
+    
+    res.status(201).json({
+      _id: user._id,
+      email: user.email,
+      role: user.role,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Erreur lors de l'inscription" });
+  }
+});
+
+// Route spéciale pour créer des admins (protégée par admin)
+app.post("/api/users/admin", protect, admin, async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      return res.status(400).json({ message: "Cet email est déjà utilisé" });
+    }
+    
+    const user = await User.create({
+      email,
+      password,
+      role: "admin",
+    });
+    
+    res.status(201).json({
+      _id: user._id,
+      email: user.email,
+      role: user.role,
+    });
+  } catch (error) {
+    console.error("Erreur création admin:", error);
+    res.status(500).json({ message: "Erreur lors de la création de l'admin" });
+  }
+});
 
   // Produits
   app.get("/api/products", getProducts);
@@ -115,21 +162,41 @@ async function startServer() {
     res.json({ success: true, images: paths });
   });
 
-  // Commandes - UNE SEULE FOIS !
-  app.post("/api/orders", createOrder);
-  app.get("/api/orders", getOrders);
-  app.put("/api/orders/:id", protect, admin, updateOrderStatus);
-
   // Commandes
   app.post("/api/orders", createOrder);
   app.get("/api/orders", protect, admin, getOrders);
   app.put("/api/orders/:id", protect, admin, updateOrderStatus);
-  app.delete("/api/orders/:id", protect, admin, deleteOrder);  // Suppression unique
-  app.post("/api/orders/delete-multiple", protect, admin, deleteMultipleOrders);  // Suppression multiple
+  app.delete("/api/orders/:id", protect, admin, deleteOrder);
+  app.post("/api/orders/delete-multiple", protect, admin, deleteMultipleOrders);
+
+  // Routes de gestion des utilisateurs
+  app.get("/api/users", protect, admin, async (req, res) => {
+    try {
+      const users = await User.find({}).select('-password');
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ message: "Erreur serveur" });
+    }
+  });
+
+  app.delete("/api/users/:id", protect, admin, async (req, res) => {
+    try {
+      const userToDelete = await User.findById(req.params.id);
+      
+      if (userToDelete?.email === "businessopentech@gmail.com") {
+        return res.status(400).json({ message: "Impossible de supprimer le super admin" });
+      }
+      
+      await User.findByIdAndDelete(req.params.id);
+      res.json({ message: "Utilisateur supprimé avec succès" });
+    } catch (error) {
+      res.status(500).json({ message: "Erreur serveur" });
+    }
+  });
 
   console.log("✅ Toutes les routes API sont enregistrées");
 
-  // ============ SERVEUR VITE (APRÈS LES ROUTES API) ============
+  // ============ SERVEUR VITE ============
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },

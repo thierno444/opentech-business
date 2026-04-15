@@ -14,7 +14,8 @@ import {
   Eye,
   XCircle,
   CheckSquare,
-  Square
+  Square,
+  Shield
 } from 'lucide-react';
 import { formatPrice, cn } from '../../lib/utils';
 import { useNavigate } from 'react-router-dom';
@@ -324,6 +325,14 @@ export default function Dashboard() {
                 )}
               >
                 <ShoppingBag size={20} /> Commandes ({orders.length})
+              </button>
+              <button
+                onClick={() => {
+                  navigate('/admin/users');
+                }}
+                className="px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all flex items-center gap-3 text-text-silver/40 hover:text-white"
+              >
+                <Shield size={20} /> Admins
               </button>
             </div>
 

@@ -14,6 +14,7 @@ import Cart from './pages/Cart';
 import Login from './pages/Admin/Login';
 import Dashboard from './pages/Admin/Dashboard';
 import ProductForm from './pages/Admin/ProductForm';
+import AdminUsers from './pages/Admin/Users';  // Vérifiez le chemin exact
 
 export default function App() {
   return (
@@ -34,6 +35,7 @@ export default function App() {
                 <Route path="/admin" element={<Dashboard />} />
                 <Route path="/admin/product/new" element={<ProductForm />} />
                 <Route path="/admin/product/edit/:id" element={<ProductForm />} />
+                <Route path="/admin/users" element={<AdminUsers />} />  {/* Ajout de cette ligne */}
               </Routes>
             </main>
             <Footer />

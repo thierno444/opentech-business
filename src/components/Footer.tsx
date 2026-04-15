@@ -6,14 +6,12 @@ import {
   Facebook, 
   Instagram, 
   Linkedin, 
-  Twitter,
   ArrowRight,
   Globe,
   ShieldCheck,
   Zap
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { motion } from 'motion/react';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -41,6 +39,47 @@ export default function Footer() {
     ]
   };
 
+  // Icône TikTok personnalisée
+  // Alternative avec image PNG
+const TikTokIcon = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
+  <img 
+    src="https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/tiktok.svg" 
+    alt="TikTok" 
+    width={size} 
+    height={size} 
+    className={className}
+    style={{ filter: 'invert(1)' }}
+  />
+);
+
+  // Liens des réseaux sociaux
+  const socialLinks = [
+    { 
+      Icon: Facebook, 
+      href: 'https://www.facebook.com/share/12MUySx2pg4/?mibextid=wwXIfr',
+      label: 'Facebook',
+      color: 'hover:text-[#1877F2]'
+    },
+    { 
+      Icon: Instagram, 
+      href: 'https://www.instagram.com/open_tech_business?igsh=YWE0YnhmbWNvN3ht&utm_source=qr',
+      label: 'Instagram',
+      color: 'hover:text-[#E4405F]'
+    },
+    { 
+      Icon: Linkedin, 
+      href: 'https://www.linkedin.com/company/opentech-business',
+      label: 'LinkedIn',
+      color: 'hover:text-[#0A66C2]'
+    },
+    { 
+      Icon: TikTokIcon, 
+      href: 'https://www.tiktok.com/@opentech_business',
+      label: 'TikTok',
+      color: 'hover:text-[#000000]'
+    }
+  ];
+
   return (
     <footer className="bg-primary relative overflow-hidden pt-24 pb-12 border-t border-white/5">
       {/* Background Glows */}
@@ -48,7 +87,7 @@ export default function Footer() {
       <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-accent-cyan/5 rounded-full blur-[120px] pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-6 relative z-10">
-        {/* Top Section: Newsletter or CTA */}
+        {/* Top Section */}
         <div className="glass rounded-[40px] p-10 md:p-16 border-white/10 mb-24 flex flex-col lg:flex-row items-center justify-between gap-12 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-accent-blue/10 rounded-full blur-3xl -mr-32 -mt-32" />
           <div className="space-y-4 text-center lg:text-left">
@@ -81,8 +120,15 @@ export default function Footer() {
               Leader de l'innovation digitale au Sénégal. Nous transformons vos idées en réalités technologiques puissantes et esthétiques.
             </p>
             <div className="flex gap-4">
-              {[Facebook, Instagram, Linkedin, Twitter].map((Icon, i) => (
-                <a key={i} href="#" className="w-12 h-12 glass rounded-xl flex items-center justify-center text-text-silver/60 hover:text-accent-cyan hover:border-accent-cyan/30 transition-all">
+              {socialLinks.map(({ Icon, href, label, color }) => (
+                <a 
+                  key={label}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`w-12 h-12 glass rounded-xl flex items-center justify-center text-text-silver/60 ${color} hover:border-accent-cyan/30 transition-all duration-300 hover:scale-110`}
+                  aria-label={label}
+                >
                   <Icon size={20} />
                 </a>
               ))}
@@ -125,7 +171,9 @@ export default function Footer() {
                 </div>
                 <div className="text-sm">
                   <p className="text-white font-bold">Email</p>
-                  <p className="text-text-silver/40">contact@opentech.sn</p>
+                  <p className="text-text-silver/40 hover:text-accent-cyan transition-colors">
+                    <a href="mailto:businessopentech@gmail.com">businessopentech@gmail.com</a>
+                  </p>
                 </div>
               </li>
               <li className="flex items-start gap-4 group">
@@ -134,7 +182,11 @@ export default function Footer() {
                 </div>
                 <div className="text-sm">
                   <p className="text-white font-bold">Téléphone</p>
-                  <p className="text-text-silver/40">+221 76 656 02 58</p>
+                  <div className="space-y-1">
+                    <p className="text-text-silver/40 hover:text-accent-cyan transition-colors">
+                      <a href="tel:+221766560258">+221 76 656 02 58</a>
+                    </p>
+                  </div>
                 </div>
               </li>
               <li className="flex items-start gap-4 group">

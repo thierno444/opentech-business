@@ -14,7 +14,10 @@ import {
   Code,
   PenTool,
   Printer,
-  Cpu
+  Cpu,
+  GraduationCap,
+  Users,
+  Award
 } from 'lucide-react';
 import { sendWhatsAppMessage } from '../lib/utils';
 
@@ -88,6 +91,11 @@ export default function Services() {
 
   const handleQuote = (serviceName: string) => {
     const message = `Bonjour OpenTech Business, je souhaite obtenir un devis pour le service : ${serviceName}`;
+    sendWhatsAppMessage("221766560258", message);
+  };
+
+  const handleTrainingInquiry = () => {
+    const message = `Bonjour OpenTech Business, je souhaite m'inscrire à une formation professionnelle.`;
     sendWhatsAppMessage("221766560258", message);
   };
 
@@ -175,11 +183,17 @@ export default function Services() {
           ))}
         </div>
 
-        {/* Training Section */}
+        {/* Training Section - Version avec image locale */}
         <section className="mt-32 p-16 glass rounded-[60px] relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-accent-blue/10 to-accent-cyan/10" />
           <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div className="space-y-8">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-accent-cyan/20 rounded-2xl flex items-center justify-center">
+                  <GraduationCap size={24} className="text-accent-cyan" />
+                </div>
+                <span className="text-xs font-black uppercase tracking-widest text-accent-cyan">Programme certifiant</span>
+              </div>
               <h2 className="text-4xl md:text-6xl font-black tracking-tighter">
                 Pôle Formation <br />
                 <span className="text-accent-cyan">Professionnelle</span>
@@ -202,24 +216,79 @@ export default function Services() {
                   </li>
                 ))}
               </ul>
-              <button 
-                onClick={() => handleQuote("Formation Professionnelle")}
-                className="btn-primary"
-              >
-                S'inscrire à une formation
-              </button>
+              <div className="flex flex-wrap gap-4 pt-4">
+                <button 
+                  onClick={handleTrainingInquiry}
+                  className="btn-primary px-8 py-4 flex items-center gap-2"
+                >
+                  S'inscrire à une formation <ArrowRight size={18} />
+                </button>
+                <button className="glass px-8 py-4 rounded-2xl flex items-center gap-2 font-bold">
+                  <Award size={18} className="text-accent-cyan" />
+                  Certifications reconnues
+                </button>
+              </div>
             </div>
             <div className="relative">
-              <div className="rounded-[40px] overflow-hidden border border-white/10 shadow-2xl rotate-3">
-                <img src="https://picsum.photos/seed/training/800/600" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              {/* Image locale - Remplacez 'ma-formation.jpg' par le nom de votre fichier */}
+              <div className="rounded-[40px] overflow-hidden border border-white/10 shadow-2xl rotate-3 transition-all hover:rotate-0 duration-500">
+                <img 
+                  src="/images/formation.jpg"
+                  alt="Formation professionnelle OpenTech Business"
+                  className="w-full h-[400px] object-cover"
+                  onError={(e) => {
+                    // Fallback si l'image n'existe pas
+                    (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&h=600&fit=crop";
+                  }}
+                />
               </div>
-              <div className="absolute -bottom-6 -left-6 p-8 glass rounded-3xl glow-blue">
-                <div className="text-4xl font-black text-white">100%</div>
-                <div className="text-xs text-text-silver/40 uppercase tracking-widest">Pratique</div>
+              {/* Badge flottant */}
+              <div className="absolute -bottom-6 -left-6 p-6 glass rounded-3xl glow-cyan backdrop-blur-xl">
+                <div className="flex items-center gap-3">
+                  <Users size={28} className="text-accent-cyan" />
+                  <div>
+                    <div className="text-2xl font-black text-white">500+</div>
+                    <div className="text-xs text-text-silver/40 uppercase tracking-widest">Apprenants formés</div>
+                  </div>
+                </div>
+              </div>
+              {/* Deuxième badge */}
+              <div className="absolute -top-6 -right-6 p-4 glass rounded-2xl glow-blue backdrop-blur-xl">
+                <div className="flex items-center gap-2">
+                  <Award size={20} className="text-accent-blue" />
+                  <div>
+                    <div className="text-sm font-black text-white">Certification</div>
+                    <div className="text-[10px] text-text-silver/40">État reconnue</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </section>
+
+        {/* Statistiques supplémentaires */}
+        <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-6">
+          {[
+            { value: "100%", label: "Satisfaction client", icon: <CheckCircle2 size={24} /> },
+            { value: "24/7", label: "Support technique", icon: <Settings size={24} /> },
+            { value: "5+", label: "Années d'expérience", icon: <Award size={24} /> },
+            { value: "500+", label: "Projets réalisés", icon: <Laptop size={24} /> },
+          ].map((stat, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className="glass rounded-3xl p-6 text-center border-white/5 hover:border-accent-cyan/30 transition-all"
+            >
+              <div className="flex justify-center mb-3 text-accent-cyan">
+                {stat.icon}
+              </div>
+              <div className="text-2xl font-black text-white">{stat.value}</div>
+              <div className="text-xs text-text-silver/40 uppercase tracking-widest">{stat.label}</div>
+            </motion.div>
+          ))}
+        </div>
       </div>
     </div>
   );
