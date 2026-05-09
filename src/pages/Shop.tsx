@@ -8,6 +8,9 @@ import {
   Star,
   CheckCircle2,
   X,
+  Play,
+  Maximize2,
+  Filter,
 } from "lucide-react";
 import { formatPrice, cn } from "../lib/utils";
 import { useCart } from "../context/CartContext";
@@ -19,12 +22,15 @@ interface Product {
   description: string;
   price: number;
   category: string;
+  brand?: string;
   images?: string[];
+  videos?: string[];
   image?: string;
   features: string[];
+  promoPrice?: number;
+  promoEndDate?: string;
 }
 
-// Fonction WhatsApp intégrée
 const sendWhatsAppMessage = (phoneNumber: string, message: string) => {
   const cleanPhone = phoneNumber.replace('+', '').replace(/\s/g, '');
   const encodedMessage = encodeURIComponent(message);
@@ -36,9 +42,12 @@ export default function Shop() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("All");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedBrand, setSelectedBrand] = useState("All");
+  const [showFilters, setShowFilters] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  const [selectedMedia, setSelectedMedia] = useState<{ type: 'image' | 'video', url: string }[]>([]);
+  const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [loadingProduct, setLoadingProduct] = useState<string | null>(null);
   const { addToCart } = useCart();
   const { showSuccess, showError, showInfo } = useNotification();
@@ -48,7 +57,6 @@ export default function Shop() {
       try {
         const API_URL = 'http://localhost:5000';
         const { data } = await axios.get(`${API_URL}/api/products`);
-        console.log("Produits chargés:", data.length);
         setProducts(data);
       } catch (error) {
         console.error("Error fetching products", error);
@@ -66,98 +74,119 @@ export default function Shop() {
     return [];
   };
 
-  const filteredProducts = products.filter((p) => {
-    const s = search.toLowerCase();
-    return (
-      (p.name.toLowerCase().includes(s) ||
-        p.description.toLowerCase().includes(s)) &&
-      (category === "All" || p.category === category)
-    );
-  });
-
-  const categories = ["All", ...new Set(products.map((p) => p.category))];
-
-  const handleWhatsAppOrder = async (product: Product) => {
-    console.log("🚨 BOUTON CLIQUE - produit:", product.name);
-    
-    setLoadingProduct(product._id);
-    const API_URL = 'http://localhost:5000';
-    
-    const orderData = {
-      customerName: "Client Boutique",
-      customerEmail: "client@boutique.com", 
-      customerPhone: "771234567",
-      items: [
-        {
-          name: product.name,
-          price: product.price,
-          quantity: 1,
-        },
-      ],
-      totalAmount: product.price,
-      message: `Commande du produit : ${product.name}`,
-    };
-
-    try {
-      const res = await axios.post(`${API_URL}/api/orders`, orderData, {
-        headers: { 
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
-        timeout: 10000,
-      });
-      
-      showSuccess(`✨ Commande créée ! Total: ${formatPrice(product.price)}`);
-      
-      setTimeout(() => {
-        const whatsappMessage = `Bonjour OpenTech Business, je souhaite commander : ${product.name} pour ${formatPrice(product.price)}`;
-        sendWhatsAppMessage("221766560258", whatsappMessage);
-      }, 1000);
-      
-    } catch (error: any) {
-      console.error("❌ Erreur:", error);
-      if (error.response) {
-        showError(`❌ Erreur ${error.response.status}: ${error.response.data.message || 'Erreur serveur'}`);
-      } else if (error.request) {
-        showError("❌ Impossible de contacter le serveur");
-      } else {
-        showError(`❌ Erreur: ${error.message}`);
-      }
-    } finally {
-      setLoadingProduct(null);
-    }
+  // Vérifier si promotion active
+  const isPromoActive = (product: Product): boolean => {
+    if (!product.promoPrice || product.promoPrice <= 0) return false;
+    if (!product.promoEndDate) return true;
+    const endDate = new Date(product.promoEndDate);
+    return endDate > new Date();
   };
 
-  const renderImageArea = (imgs: string[], productName: string) => {
-    if (!imgs || imgs.length === 0) return null;
-    if (imgs.length === 1) {
+  // Obtenir le prix actuel
+  const getCurrentPrice = (product: Product): number => {
+    if (isPromoActive(product) && product.promoPrice && product.promoPrice > 0) {
+      return product.promoPrice;
+    }
+    return product.price;
+  };
+  
+  // Récupérer toutes les catégories
+  const categories = ["All", ...new Set(products.map((p) => p.category).filter(Boolean))];
+  
+  // 🔧 CORRECTION ICI : Récupérer les marques UNIQUEMENT pour la catégorie sélectionnée
+  const getBrandsForSelectedCategory = () => {
+    if (selectedCategory === "All") {
+      // Si "Tous", on renvoie un tableau vide car on ne veut pas de filtre marque
+      return [];
+    }
+    // Filtrer les produits par la catégorie sélectionnée, puis prendre leurs marques
+    return [...new Set(
+      products
+        .filter(p => p.category === selectedCategory && p.brand)
+        .map(p => p.brand)
+        .filter(Boolean)
+    )];
+  };
+
+  const brandsForCategory = getBrandsForSelectedCategory();
+  const brands = ["All", ...brandsForCategory];
+
+  // Filtrer les produits
+  const filteredProducts = products.filter((p) => {
+    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.description.toLowerCase().includes(search.toLowerCase());
+    const matchesCategory = selectedCategory === "All" || p.category === selectedCategory;
+    // 🔧 CORRECTION : Ne filtrer par marque que si une marque est sélectionnée ET que la catégorie correspond
+    const matchesBrand = selectedBrand === "All" || (p.brand === selectedBrand && p.category === selectedCategory);
+    return matchesSearch && matchesCategory && matchesBrand;
+  });
+
+  // Réinitialiser la marque quand la catégorie change
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category);
+    setSelectedBrand("All"); // ← Important : réinitialiser la marque
+  };
+
+  const openMediaModal = (product: Product) => {
+    const images = normalizeImages(product);
+    const videos = product.videos || [];
+    const allMedia = [
+      ...videos.map(v => ({ type: 'video' as const, url: v })),
+      ...images.map(i => ({ type: 'image' as const, url: i }))
+    ];
+    setSelectedMedia(allMedia);
+    setCurrentMediaIndex(0);
+    setShowModal(true);
+  };
+
+  const renderMediaThumbnail = (product: Product) => {
+    const images = normalizeImages(product);
+    const videos = product.videos || [];
+    const hasVideo = videos.length > 0;
+    const firstImage = images[0];
+    
+    if (hasVideo) {
       return (
-        <img
-          src={imgs[0]}
-          alt={productName}
-          className="w-full h-64 object-cover"
-        />
+        <div className="relative w-full h-64 group/video cursor-pointer">
+          {firstImage ? (
+            <img src={firstImage} alt={product.name} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full bg-black/50 flex items-center justify-center">
+              <video className="w-full h-full object-cover" src={videos[0]} />
+            </div>
+          )}
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+            <div className="w-16 h-16 bg-accent-cyan/90 rounded-full flex items-center justify-center transform transition-transform group-hover/video:scale-110">
+              <Play size={32} className="text-white ml-1" />
+            </div>
+          </div>
+          <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/60 rounded-lg text-xs flex items-center gap-1">
+            <Play size={12} /> Vidéo
+          </div>
+        </div>
       );
     }
+    
+    if (images.length === 1) {
+      return (
+        <img src={images[0]} alt={product.name} className="w-full h-64 object-cover cursor-pointer" />
+      );
+    }
+    
     return (
       <motion.div
-        className="absolute inset-0 flex"
+        className="absolute inset-0 flex cursor-pointer"
         animate={{ x: [0, "-100%"] }}
         transition={{
           repeat: Infinity,
           repeatType: "loop",
-          duration: imgs.length * 6,
+          duration: images.length * 6,
           ease: "linear",
         }}
-        style={{ width: `${imgs.length * 100}%` }}
+        style={{ width: `${images.length * 100}%` }}
       >
-        {imgs.map((src, i) => (
-          <img
-            key={i}
-            src={src}
-            alt={`${productName}-${i}`}
-            className="w-full h-64 object-cover flex-shrink-0"
-          />
+        {images.map((src, i) => (
+          <img key={i} src={src} alt={`${product.name}-${i}`} className="w-full h-64 object-cover flex-shrink-0" />
         ))}
       </motion.div>
     );
@@ -180,7 +209,6 @@ export default function Shop() {
       <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-accent-cyan/5 rounded-full blur-[120px]" />
 
       <div className="max-w-7xl mx-auto relative z-10">
-        {/* Titre */}
         <div className="text-center mb-20 space-y-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -194,36 +222,99 @@ export default function Shop() {
           </h1>
         </div>
 
-        {/* Filtres */}
-        <div className="flex flex-col lg:flex-row gap-8 mb-16 items-center justify-between">
-          <div className="relative w-full lg:w-[450px]">
-            <Search
-              className="absolute left-6 top-1/2 -translate-y-1/2 text-text-silver/40"
-              size={20}
-            />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Rechercher un pack..."
-              className="w-full pl-16 pr-6 py-5 glass rounded-3xl focus:border-accent-cyan outline-none text-lg"
-            />
+        {/* Filtres avec catégorie et marque */}
+        <div className="flex flex-col gap-6 mb-16">
+          <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+            <div className="relative w-full lg:w-[450px]">
+              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-text-silver/40" size={20} />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Rechercher un produit..."
+                className="w-full pl-16 pr-6 py-5 glass rounded-3xl focus:border-accent-cyan outline-none text-lg"
+              />
+            </div>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 px-6 py-3 glass rounded-2xl hover:bg-white/10 transition-all"
+            >
+              <Filter size={18} />
+              <span className="font-bold text-sm">Filtres</span>
+            </button>
           </div>
-          <div className="flex gap-3 overflow-x-auto w-full lg:w-auto pb-4 no-scrollbar">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setCategory(cat)}
-                className={cn(
-                  "px-8 py-4 rounded-2xl text-sm font-black uppercase tracking-widest whitespace-nowrap transition-all",
-                  category === cat
-                    ? "bg-accent-blue text-white glow-blue"
-                    : "glass border-white/5 text-text-silver/60 hover:bg-white/10"
-                )}
+
+          <AnimatePresence>
+            {showFilters && (
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="glass rounded-3xl p-6 space-y-6"
               >
-                {cat}
-              </button>
-            ))}
-          </div>
+                {/* Filtre par catégorie */}
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-accent-cyan mb-3">Catégories</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {categories.map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => handleCategoryChange(cat)} // ← Utiliser handleCategoryChange
+                        className={cn(
+                          "px-5 py-2 rounded-xl text-sm font-bold transition-all",
+                          selectedCategory === cat
+                            ? "bg-accent-blue text-white"
+                            : "glass border-white/10 hover:bg-white/10"
+                        )}
+                      >
+                        {cat === "All" ? "Tous" : cat}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 🔧 CORRECTION : Filtre par marque - visible seulement si une catégorie spécifique est sélectionnée ET qu'il y a des marques */}
+                {selectedCategory !== "All" && brands.length > 1 && (
+                  <div>
+                    <h3 className="text-sm font-black uppercase tracking-widest text-accent-cyan mb-3">
+                      Marques ({selectedCategory})
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {brands.map((brand) => (
+                        <button
+                          key={brand}
+                          onClick={() => setSelectedBrand(brand)}
+                          className={cn(
+                            "px-5 py-2 rounded-xl text-sm font-bold transition-all",
+                            selectedBrand === brand
+                              ? "bg-accent-blue text-white"
+                              : "glass border-white/10 hover:bg-white/10"
+                          )}
+                        >
+                          {brand === "All" ? "Toutes les marques" : brand}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {(selectedCategory !== "All" || selectedBrand !== "All" || search) && (
+                  <div className="pt-4 border-t border-white/10">
+                    <p className="text-sm text-text-silver/40">{filteredProducts.length} produit(s) trouvé(s)</p>
+                    <button
+                      onClick={() => {
+                        setSelectedCategory("All");
+                        setSelectedBrand("All");
+                        setSearch("");
+                      }}
+                      className="text-xs text-accent-cyan hover:underline mt-2"
+                    >
+                      Réinitialiser les filtres
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Grille des produits */}
@@ -231,6 +322,10 @@ export default function Shop() {
           <AnimatePresence mode="popLayout">
             {filteredProducts.map((product) => {
               const imgs = normalizeImages(product);
+              const hasPromo = isPromoActive(product);
+              const currentPrice = getCurrentPrice(product);
+              const savedAmount = hasPromo ? product.price - currentPrice : 0;
+              
               return (
                 <motion.div
                   key={product._id}
@@ -239,21 +334,40 @@ export default function Shop() {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
                   whileHover={{ y: -15 }}
-                  className="glass rounded-[40px] overflow-hidden flex flex-col group border-white/5 hover:border-accent-cyan/30 transition-all duration-500 cursor-pointer"
-                  onClick={() => {
-                    if (imgs.length) {
-                      setSelectedImages(imgs);
-                      setShowModal(true);
-                    }
-                  }}
+                  className="glass rounded-[40px] overflow-hidden flex flex-col group border-white/5 hover:border-accent-cyan/30 transition-all duration-500"
                 >
-                  <div className="h-64 relative overflow-hidden">
-                    {renderImageArea(imgs, product.name)}
-                    <div className="absolute inset-0 bg-gradient-to-t from-primary/90 via-transparent to-transparent opacity-60" />
-                    <div className="absolute top-6 left-6 px-4 py-1 bg-accent-blue/80 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest rounded-full">
+                  {/* Badge promotion */}
+                  {hasPromo && (
+                    <div className="absolute top-4 right-4 z-20">
+                      <div className="bg-gradient-to-r from-accent-orange to-red-500 text-white px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg">
+                        -{Math.round(((product.price - currentPrice) / product.price) * 100)}%
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Badge catégorie */}
+                  <div className="absolute top-4 left-4 z-20">
+                    <div className="px-3 py-1.5 bg-accent-blue/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg">
                       {product.category}
                     </div>
-                    <div className="absolute bottom-6 left-6 flex items-center gap-1 text-accent-orange">
+                  </div>
+
+                  {/* Badge marque */}
+                  {product.brand && (
+                    <div className="absolute bottom-4 left-4 z-20">
+                      <div className="px-3 py-1 bg-black/60 backdrop-blur-md rounded-xl text-xs font-bold">
+                        {product.brand}
+                      </div>
+                    </div>
+                  )}
+
+                  <div 
+                    className="h-64 relative overflow-hidden cursor-pointer"
+                    onClick={() => openMediaModal(product)}
+                  >
+                    {renderMediaThumbnail(product)}
+                    <div className="absolute inset-0 bg-gradient-to-t from-primary/90 via-transparent to-transparent opacity-60 pointer-events-none" />
+                    <div className="absolute bottom-6 left-6 flex items-center gap-1 text-accent-orange pointer-events-none">
                       {[1, 2, 3, 4, 5].map((n) => (
                         <Star key={n} size={14} fill="currentColor" />
                       ))}
@@ -262,7 +376,7 @@ export default function Shop() {
 
                   <div className="p-10 flex-1 flex flex-col space-y-6">
                     <div className="space-y-2">
-                      <h3 className="text-2xl font-black leading-tight group-hover:text-accent-cyan transition-colors">
+                      <h3 className="text-2xl font-black leading-tight group-hover:text-accent-cyan transition-colors line-clamp-2">
                         {product.name}
                       </h3>
                       <p className="text-sm text-text-silver/40 line-clamp-2">
@@ -271,56 +385,96 @@ export default function Shop() {
                     </div>
 
                     <div className="space-y-3 flex-1">
-                      {product.features.map((f, i) => (
-                        <div
-                          key={i}
-                          className="flex items-start gap-3 text-xs text-text-silver/70"
-                        >
-                          <CheckCircle2
-                            size={16}
-                            className="text-accent-green shrink-0"
-                          />
+                      {product.features.slice(0, 3).map((f, i) => (
+                        <div key={i} className="flex items-start gap-3 text-xs text-text-silver/70">
+                          <CheckCircle2 size={16} className="text-accent-green shrink-0" />
                           <span>{f}</span>
                         </div>
                       ))}
+                      {product.features.length > 3 && (
+                        <p className="text-xs text-text-silver/40">+{product.features.length - 3} autres caractéristiques</p>
+                      )}
                     </div>
 
-                    <div className="pt-8 border-t border-white/5 flex items-center justify-between">
-                      <div className="flex flex-col">
-                        <span className="text-xs text-text-silver/40 uppercase font-bold tracking-widest">
-                          Prix
-                        </span>
-                        <span className="text-3xl font-black text-white">
-                          {formatPrice(product.price)}
-                        </span>
-                      </div>
-                      <div className="flex gap-3">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            addToCart(product);
-                            showInfo(`🛒 ${product.name} ajouté au panier`);
-                          }}
-                          className="w-12 h-12 glass border-white/10 rounded-xl text-accent-cyan hover:bg-accent-cyan hover:text-white flex items-center justify-center transition-all"
-                        >
-                          <ShoppingCart size={20} />
-                        </button>
-                        <button
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            await handleWhatsAppOrder(product);
-                          }}
-                          disabled={loadingProduct === product._id}
-                          className="w-12 h-12 bg-accent-orange rounded-xl text-white glow-orange hover:scale-110 flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {loadingProduct === product._id ? (
-                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          ) : (
-                            <MessageCircle size={20} />
+                    <div className="pt-8 border-t border-white/5">
+                      {hasPromo ? (
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-3">
+                            <span className="text-3xl font-black text-accent-orange">
+                              {formatPrice(currentPrice)}
+                            </span>
+                            <span className="text-sm text-text-silver/40 line-through">
+                              {formatPrice(product.price)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-accent-green">
+                              Économisez {formatPrice(savedAmount)}
+                            </span>
+                          </div>
+                          {product.promoEndDate && new Date(product.promoEndDate) > new Date() && (
+                            <div className="text-[10px] text-text-silver/40">
+                              Offre valable jusqu'au {new Date(product.promoEndDate).toLocaleDateString('fr-FR')}
+                            </div>
                           )}
-                        </button>
-                      </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col">
+                          <span className="text-xs text-text-silver/40 uppercase font-bold tracking-widest">Prix</span>
+                          <span className="text-3xl font-black text-white">{formatPrice(product.price)}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          addToCart(product);
+                          showInfo(`🛒 ${product.name} ajouté au panier`);
+                        }}
+                        className="flex-1 py-3 glass border-white/10 rounded-xl text-accent-cyan hover:bg-accent-cyan hover:text-white flex items-center justify-center gap-2 transition-all"
+                      >
+                        <ShoppingCart size={18} />
+                        <span className="text-sm font-bold">Ajouter</span>
+                      </button>
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          setLoadingProduct(product._id);
+                          try {
+                            const orderData = {
+                              customerName: "Client Boutique",
+                              customerEmail: "client@boutique.com", 
+                              customerPhone: "771234567",
+                              items: [{ name: product.name, price: currentPrice, quantity: 1 }],
+                              totalAmount: currentPrice,
+                              message: `Commande du produit : ${product.name}`,
+                            };
+                            await axios.post('http://localhost:5000/api/orders', orderData);
+                            showSuccess(`✨ Commande créée ! Total: ${formatPrice(currentPrice)}`);
+                            setTimeout(() => {
+                              sendWhatsAppMessage("221766560258", `Bonjour OpenTech Business, je souhaite commander : ${product.name} pour ${formatPrice(currentPrice)}`);
+                            }, 1000);
+                          } catch (error: any) {
+                            showError("❌ Erreur lors de la commande");
+                          } finally {
+                            setLoadingProduct(null);
+                          }
+                        }}
+                        disabled={loadingProduct === product._id}
+                        className="flex-1 py-3 bg-accent-orange rounded-xl text-white glow-orange hover:scale-105 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                      >
+                        {loadingProduct === product._id ? (
+                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            <MessageCircle size={18} />
+                            <span className="text-sm font-bold">Commander</span>
+                          </>
+                        )}
+                      </button>
                     </div>
                   </div>
                 </motion.div>
@@ -328,40 +482,55 @@ export default function Shop() {
             })}
           </AnimatePresence>
         </div>
+
+        {filteredProducts.length === 0 && (
+          <div className="text-center py-20">
+            <div className="text-6xl mb-4">🔍</div>
+            <h3 className="text-2xl font-black mb-2">Aucun produit trouvé</h3>
+            <p className="text-text-silver/40">Essayez de modifier vos filtres ou votre recherche</p>
+          </div>
+        )}
       </div>
 
-      {/* Aperçu plein écran */}
+      {/* Modal Médias */}
       <AnimatePresence>
-        {showModal && (
+        {showModal && selectedMedia.length > 0 && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-4"
             onClick={() => setShowModal(false)}
           >
-            <div
-              onClick={(e) => e.stopPropagation()}
-              className="max-w-4xl w-full relative"
-            >
-              <button
-                onClick={() => setShowModal(false)}
-                className="absolute top-4 right-4 text-white hover:text-red-400 z-10"
-              >
-                <X size={28} />
+            <div onClick={(e) => e.stopPropagation()} className="max-w-5xl w-full relative">
+              {selectedMedia.length > 1 && (
+                <>
+                  <button
+                    onClick={() => setCurrentMediaIndex((prev) => prev > 0 ? prev - 1 : selectedMedia.length - 1)}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 glass rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-all z-10"
+                  >
+                    ←
+                  </button>
+                  <button
+                    onClick={() => setCurrentMediaIndex((prev) => prev < selectedMedia.length - 1 ? prev + 1 : 0)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 glass rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-all z-10"
+                  >
+                    →
+                  </button>
+                </>
+              )}
+              <button onClick={() => setShowModal(false)} className="absolute top-4 right-4 w-12 h-12 glass rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-all z-10">
+                <X size={24} />
               </button>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {selectedImages.map((src, i) => (
-                  <motion.img
-                    key={i}
-                    src={src}
-                    alt={`img-${i}`}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: i * 0.1 }}
-                    className="object-cover w-full h-80 rounded-xl"
-                  />
-                ))}
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 glass px-4 py-2 rounded-full text-xs z-10">
+                {currentMediaIndex + 1} / {selectedMedia.length}
+              </div>
+              <div className="flex items-center justify-center min-h-[60vh]">
+                {selectedMedia[currentMediaIndex].type === 'video' ? (
+                  <video src={selectedMedia[currentMediaIndex].url} className="max-w-full max-h-[80vh] rounded-2xl" controls autoPlay />
+                ) : (
+                  <img src={selectedMedia[currentMediaIndex].url} alt="media" className="max-w-full max-h-[80vh] rounded-2xl object-contain" />
+                )}
               </div>
             </div>
           </motion.div>

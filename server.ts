@@ -73,20 +73,39 @@ async function startServer() {
         price: 10000,
         category: "test",
         images: ["https://picsum.photos/seed/a1/600/400"],
+        videos: [],
         features: ["démo"],
       },
     ]);
     console.log("🛠️ Produits de base créés");
   }
 
-  // Upload fichiers
+  // Upload fichiers avec support vidéo
   const uploadDir = path.join(process.cwd(), "uploads");
   if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+  
   const storage = multer.diskStorage({
     destination: (_, __, cb) => cb(null, uploadDir),
     filename: (_, file, cb) => cb(null, file.fieldname + "-" + Date.now() + path.extname(file.originalname)),
   });
-  const upload = multer({ storage });
+  
+  // Configuration multer améliorée pour les vidéos
+  const upload = multer({ 
+    storage,
+    limits: { 
+      fileSize: 100 * 1024 * 1024, // 100MB pour les vidéos
+      files: 20 // Jusqu'à 20 fichiers (images + vidéos)
+    },
+    fileFilter: (req, file, cb) => {
+      // Accepter les images et les vidéos
+      if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
+        cb(null, true);
+      } else {
+        cb(new Error('Format non supporté. Utilisez des images (JPEG, PNG, GIF) ou des vidéos (MP4, WebM)') as any, false);
+      }
+    }
+  });
+  
   app.use("/uploads", express.static(uploadDir));
 
   // ============ ROUTES API ============
@@ -98,68 +117,68 @@ async function startServer() {
   // Authentification
   app.post("/api/users/login", loginUser);
   app.post("/api/users/register", async (req, res) => {
-  try {
-    const { email, password, role } = req.body;
-    
-    // Vérifier si l'utilisateur existe déjà
-    const userExists = await User.findOne({ email });
-    if (userExists) {
-      return res.status(400).json({ message: "Cet email est déjà utilisé" });
+    try {
+      const { email, password, role } = req.body;
+      
+      const userExists = await User.findOne({ email });
+      if (userExists) {
+        return res.status(400).json({ message: "Cet email est déjà utilisé" });
+      }
+      
+      const user = await User.create({
+        email,
+        password,
+        role: role === 'admin' ? 'admin' : 'user',
+      });
+      
+      res.status(201).json({
+        _id: user._id,
+        email: user.email,
+        role: user.role,
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Erreur lors de l'inscription" });
     }
-    
-    // Créer l'utilisateur
-    const user = await User.create({
-      email,
-      password,
-      role: role === 'admin' ? 'admin' : 'user', // Permettre la création d'admin
-    });
-    
-    res.status(201).json({
-      _id: user._id,
-      email: user.email,
-      role: user.role,
-    });
-  } catch (error) {
-    res.status(500).json({ message: "Erreur lors de l'inscription" });
-  }
-});
+  });
 
-// Route spéciale pour créer des admins (protégée par admin)
-app.post("/api/users/admin", protect, admin, async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    
-    const userExists = await User.findOne({ email });
-    if (userExists) {
-      return res.status(400).json({ message: "Cet email est déjà utilisé" });
+  // Route spéciale pour créer des admins (protégée par admin)
+  app.post("/api/users/admin", protect, admin, async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      
+      const userExists = await User.findOne({ email });
+      if (userExists) {
+        return res.status(400).json({ message: "Cet email est déjà utilisé" });
+      }
+      
+      const user = await User.create({
+        email,
+        password,
+        role: "admin",
+      });
+      
+      res.status(201).json({
+        _id: user._id,
+        email: user.email,
+        role: user.role,
+      });
+    } catch (error) {
+      console.error("Erreur création admin:", error);
+      res.status(500).json({ message: "Erreur lors de la création de l'admin" });
     }
-    
-    const user = await User.create({
-      email,
-      password,
-      role: "admin",
-    });
-    
-    res.status(201).json({
-      _id: user._id,
-      email: user.email,
-      role: user.role,
-    });
-  } catch (error) {
-    console.error("Erreur création admin:", error);
-    res.status(500).json({ message: "Erreur lors de la création de l'admin" });
-  }
-});
+  });
 
-  // Produits
+  // Produits - avec support médias (images + vidéos)
   app.get("/api/products", getProducts);
   app.get("/api/products/:id", getProductById);
-  app.post("/api/products", protect, admin, upload.array("images", 10), createProduct);
-  app.put("/api/products/:id", protect, admin, upload.array("images", 10), updateProduct);
+  app.post("/api/products", protect, admin, upload.array("media", 20), createProduct);
+  app.put("/api/products/:id", protect, admin, upload.array("media", 20), updateProduct);
   app.delete("/api/products/:id", protect, admin, deleteProduct);
-  app.post("/api/products/upload", protect, admin, upload.array("images", 10), (req, res) => {
-    const paths = (req.files as Express.Multer.File[]).map((f) => `/uploads/${f.filename}`);
-    res.json({ success: true, images: paths });
+  app.post("/api/products/upload", protect, admin, upload.array("media", 20), (req, res) => {
+    const files = (req.files as Express.Multer.File[]);
+    const images = files.filter(f => f.mimetype.startsWith('image/')).map(f => `/uploads/${f.filename}`);
+    const videos = files.filter(f => f.mimetype.startsWith('video/')).map(f => `/uploads/${f.filename}`);
+    res.json({ success: true, images, videos });
   });
 
   // Commandes

@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
 import { Product } from "../models/productModel";
+import fs from "fs";
+import path from "path";
 
 /* ------------ Récupération de tous les produits ------------ */
 export const getProducts = async (_req: Request, res: Response) => {
@@ -27,27 +29,37 @@ export const getProductById = async (req: Request, res: Response) => {
 /* ------------ Création d’un produit ------------ */
 export const createProduct = async (req: Request, res: Response) => {
   try {
-    const { name, description, price, category, features, whatsappLink } = req.body;
+    const { name, description, price, category, brand, features, whatsappLink, promoPrice, promoEndDate } = req.body;
 
-    // 🔹 extraction correcte du champ images (array / string / JSON)
     let images: string[] = [];
-    if (Array.isArray(req.body.images)) {
-      images = req.body.images;
-    } else if (typeof req.body.images === "string") {
-      try {
-        const parsed = JSON.parse(req.body.images);
-        images = Array.isArray(parsed) ? parsed : [parsed];
-      } catch {
-        images = [req.body.images];
+    let videos: string[] = [];
+
+    if ((req as any).files && (req as any).files.length > 0) {
+      for (const file of (req as any).files) {
+        const filePath = `/uploads/${file.filename}`;
+        if (file.mimetype.startsWith('image/')) {
+          images.push(filePath);
+        } else if (file.mimetype.startsWith('video/')) {
+          videos.push(filePath);
+        }
       }
     }
 
-    // 🔹 fallback : si rien reçu, mais qu’un upload existe en mémoire
-    if (!images.length && (req as any).files?.length > 0) {
-      const uploaded = (req as any).files.map(
-        (f: Express.Multer.File) => `/uploads/${f.filename}`
-      );
-      images = uploaded;
+    let parsedFeatures = features;
+    if (typeof features === "string") {
+      try {
+        parsedFeatures = JSON.parse(features);
+      } catch {
+        parsedFeatures = features ? [features] : [];
+      }
+    }
+
+    // Gérer la date de fin de promotion
+    let parsedPromoEndDate = null;
+    if (promoEndDate && promoEndDate !== "") {
+      parsedPromoEndDate = new Date(promoEndDate);
+      // Fixer à 23:59:59 pour que la promo soit valable toute la journée
+      parsedPromoEndDate.setHours(23, 59, 59, 999);
     }
 
     const product = await Product.create({
@@ -55,9 +67,13 @@ export const createProduct = async (req: Request, res: Response) => {
       description,
       price,
       category,
+      brand: brand || "",
       images,
-      features,
+      videos,
+      features: Array.isArray(parsedFeatures) ? parsedFeatures : [],
       whatsappLink,
+      promoPrice: promoPrice ? Number(promoPrice) : 0,
+      promoEndDate: parsedPromoEndDate,
     });
 
     res.status(201).json(product);
@@ -73,36 +89,120 @@ export const updateProduct = async (req: Request, res: Response) => {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ message: "Produit non trouvé" });
 
-    const { name, description, price, category, features, whatsappLink } = req.body;
+    const { 
+      name, 
+      description, 
+      price, 
+      category, 
+      brand, 
+      features, 
+      whatsappLink, 
+      existingImages, 
+      existingVideos, 
+      imagesToDelete, 
+      videosToDelete, 
+      promoPrice, 
+      promoEndDate 
+    } = req.body;
 
-    let images: string[] = [];
-    if (Array.isArray(req.body.images)) {
-      images = req.body.images;
-    } else if (typeof req.body.images === "string") {
+    // Gérer les images
+    let finalImages: string[] = [];
+    if (existingImages) {
       try {
-        const parsed = JSON.parse(req.body.images);
-        images = Array.isArray(parsed) ? parsed : [parsed];
+        finalImages = JSON.parse(existingImages);
       } catch {
-        images = [req.body.images];
+        finalImages = Array.isArray(existingImages) ? existingImages : [];
+      }
+    } else {
+      finalImages = [...product.images];
+    }
+    
+    let finalVideos: string[] = [];
+    if (existingVideos) {
+      try {
+        finalVideos = JSON.parse(existingVideos);
+      } catch {
+        finalVideos = Array.isArray(existingVideos) ? existingVideos : [];
+      }
+    } else {
+      finalVideos = [...product.videos];
+    }
+    
+    if ((req as any).files && (req as any).files.length > 0) {
+      for (const file of (req as any).files) {
+        const filePath = `/uploads/${file.filename}`;
+        if (file.mimetype.startsWith('image/')) {
+          finalImages.push(filePath);
+        } else if (file.mimetype.startsWith('video/')) {
+          finalVideos.push(filePath);
+        }
       }
     }
 
-    // 🔹 si requête multipart → prendre les fichiers uploadés
-    if (!images.length && (req as any).files?.length > 0) {
-      const uploaded = (req as any).files.map(
-        (f: Express.Multer.File) => `/uploads/${f.filename}`
-      );
-      images = uploaded;
+    const deleteFiles = async (filesToDelete: string[]) => {
+      for (const filePath of filesToDelete) {
+        const fullPath = path.join(process.cwd(), filePath);
+        if (fs.existsSync(fullPath)) {
+          fs.unlinkSync(fullPath);
+        }
+      }
+    };
+
+    if (imagesToDelete) {
+      let toDelete: string[] = [];
+      try {
+        toDelete = JSON.parse(imagesToDelete);
+      } catch {
+        toDelete = Array.isArray(imagesToDelete) ? imagesToDelete : [];
+      }
+      await deleteFiles(toDelete);
     }
 
-    // 🔹 appliquer les champs modifiés
+    if (videosToDelete) {
+      let toDelete: string[] = [];
+      try {
+        toDelete = JSON.parse(videosToDelete);
+      } catch {
+        toDelete = Array.isArray(videosToDelete) ? videosToDelete : [];
+      }
+      await deleteFiles(toDelete);
+    }
+
+    let parsedFeatures = features;
+    if (typeof features === "string") {
+      try {
+        parsedFeatures = JSON.parse(features);
+      } catch {
+        parsedFeatures = features ? [features] : product.features;
+      }
+    }
+
+    // Mise à jour des champs de base
     if (name) product.name = name;
     if (description) product.description = description;
     if (price) product.price = price;
     if (category) product.category = category;
-    if (features) product.features = features;
+    if (brand !== undefined) product.brand = brand;
+    if (parsedFeatures) product.features = Array.isArray(parsedFeatures) ? parsedFeatures : product.features;
     if (whatsappLink) product.whatsappLink = whatsappLink;
-    if (images.length) product.images = images;
+    if (finalImages.length >= 0) product.images = finalImages;
+    if (finalVideos.length >= 0) product.videos = finalVideos;
+    
+    // Gestion de la promotion
+    if (promoPrice !== undefined) {
+      product.promoPrice = Number(promoPrice) || 0;
+    }
+    
+    // Gestion de la date de fin de promotion
+    if (promoEndDate !== undefined) {
+      if (promoEndDate && promoEndDate !== "") {
+        const endDate = new Date(promoEndDate);
+        endDate.setHours(23, 59, 59, 999);
+        product.promoEndDate = endDate;
+      } else {
+        product.promoEndDate = null;
+      }
+    }
 
     const updated = await product.save();
     res.json(updated);
@@ -117,6 +217,25 @@ export const deleteProduct = async (req: Request, res: Response) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ message: "Produit non trouvé" });
+    
+    if (product.images && product.images.length > 0) {
+      for (const imgPath of product.images) {
+        const fullPath = path.join(process.cwd(), imgPath);
+        if (fs.existsSync(fullPath)) {
+          fs.unlinkSync(fullPath);
+        }
+      }
+    }
+    
+    if (product.videos && product.videos.length > 0) {
+      for (const videoPath of product.videos) {
+        const fullPath = path.join(process.cwd(), videoPath);
+        if (fs.existsSync(fullPath)) {
+          fs.unlinkSync(fullPath);
+        }
+      }
+    }
+    
     await product.deleteOne();
     res.json({ message: "Produit supprimé" });
   } catch (err) {

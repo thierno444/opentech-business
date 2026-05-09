@@ -33,9 +33,27 @@ export default function Navbar() {
     )}>
       <div className="max-w-7xl mx-auto flex justify-between items-center">
         <Link to="/" className="flex items-center gap-3 group">
-          <div className="w-12 h-12 bg-gradient-to-br from-accent-blue to-accent-cyan rounded-2xl flex items-center justify-center glow-blue group-hover:rotate-12 transition-transform duration-500">
-            <span className="text-white font-black text-2xl">OT</span>
+          {/* Logo image avec animation */}
+          <div className="relative">
+            <motion.div
+              whileHover={{ scale: 1.05, rotate: 5 }}
+              transition={{ duration: 0.3 }}
+              className="w-12 h-12 rounded-2xl overflow-hidden bg-gradient-to-br from-accent-blue to-accent-cyan flex items-center justify-center"
+            >
+              <img 
+                src="/images/logo.png" 
+                alt="OpenTech Business" 
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  // Fallback si l'image ne charge pas
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.parentElement!.innerHTML = '<span class="text-white font-black text-2xl">OT</span>';
+                }}
+              />
+            </motion.div>
+            <div className="absolute inset-0 bg-gradient-to-br from-accent-blue to-accent-cyan rounded-2xl blur-xl opacity-0 group-hover:opacity-50 transition-opacity duration-500" />
           </div>
+          
           <div className="flex flex-col">
             <span className="text-xl font-black tracking-tighter text-white leading-none">
               OpenTech
