@@ -54,21 +54,49 @@ export default function Shop() {
   const { showSuccess, showError, showInfo } = useNotification();
 
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        // SUPPRIMER LA DÉCLARATION LOCALE DE API_URL
-        // const API_URL = 'http://localhost:5000';
-        const { data } = await axios.get(`${API_URL}/api/products`);
-        setProducts(data);
-      } catch (error) {
-        console.error("Error fetching products", error);
-        showError("Erreur lors du chargement des produits");
-      } finally {
-        setLoading(false);
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_URL}/api/products`);
+      
+      console.log("📦 Réponse API brute:", response.data);
+      
+      // Normalisation des données
+      let productsData = [];
+      if (Array.isArray(response.data)) {
+        productsData = response.data;
+      } else if (response.data && typeof response.data === 'object') {
+        // Chercher un tableau dans l'objet réponse
+        const possibleArrays = ['data', 'products', 'items', 'mesures', 'results'];
+        for (const key of possibleArrays) {
+          if (response.data[key] && Array.isArray(response.data[key])) {
+            productsData = response.data[key];
+            console.log(`✅ Trouvé tableau dans la propriété "${key}"`);
+            break;
+          }
+        }
       }
-    };
-    fetchProducts();
-  }, []);
+      
+      // Si toujours vide, essayer de convertir l'objet en tableau si c'est un objet numéroté
+      if (productsData.length === 0 && response.data && typeof response.data === 'object') {
+        const values = Object.values(response.data);
+        if (values.length > 0 && Array.isArray(values[0])) {
+          productsData = values[0];
+        }
+      }
+      
+      console.log("✅ Produits chargés:", productsData.length);
+      setProducts(productsData);
+    } catch (error) {
+      console.error("❌ Erreur fetch produits:", error);
+      showError("Erreur lors du chargement des produits");
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+  fetchProducts();
+}, []);
 
   const normalizeImages = (product: Product): string[] => {
     if (product.images && product.images.length > 0) return product.images;
