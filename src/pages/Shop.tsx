@@ -55,35 +55,27 @@ export default function Shop() {
 
   useEffect(() => {
   const fetchProducts = async () => {
-      console.log("🔍 API_URL actuelle:", API_URL);
     try {
       setLoading(true);
-      const response = await axios.get(`${API_URL}/api/products`);
       
-      console.log("📦 Réponse API brute:", response.data);
+      // 🔧 Fallback direct
+      const baseUrl = API_URL || 'https://opentech-backend.onrender.com';
+      const url = `${baseUrl}/api/products`;
       
-      // Normalisation des données
+      console.log("🌐 Appel API:", url);
+      
+      const response = await axios.get(url);
+      
+      console.log("📦 Réponse brute:", response.data);
+      
+      // Normalisation...
       let productsData = [];
       if (Array.isArray(response.data)) {
         productsData = response.data;
-      } else if (response.data && typeof response.data === 'object') {
-        // Chercher un tableau dans l'objet réponse
-        const possibleArrays = ['data', 'products', 'items', 'mesures', 'results'];
-        for (const key of possibleArrays) {
-          if (response.data[key] && Array.isArray(response.data[key])) {
-            productsData = response.data[key];
-            console.log(`✅ Trouvé tableau dans la propriété "${key}"`);
-            break;
-          }
-        }
-      }
-      
-      // Si toujours vide, essayer de convertir l'objet en tableau si c'est un objet numéroté
-      if (productsData.length === 0 && response.data && typeof response.data === 'object') {
-        const values = Object.values(response.data);
-        if (values.length > 0 && Array.isArray(values[0])) {
-          productsData = values[0];
-        }
+      } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        productsData = response.data.data;
+      } else if (response.data && response.data.products && Array.isArray(response.data.products)) {
+        productsData = response.data.products;
       }
       
       console.log("✅ Produits chargés:", productsData.length);
