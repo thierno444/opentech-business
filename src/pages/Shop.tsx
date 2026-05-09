@@ -55,6 +55,7 @@ export default function Shop() {
 
   useEffect(() => {
   const fetchProducts = async () => {
+      console.log("🔍 API_URL actuelle:", API_URL);
     try {
       setLoading(true);
       const response = await axios.get(`${API_URL}/api/products`);

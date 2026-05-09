@@ -1,4 +1,6 @@
-// src/config/api.ts (créez ce fichier)
-export const API_URL = import.meta.env.VITE_API_URL || '';
+// src/config/api.ts
+export const API_URL = import.meta.env.VITE_API_URL || 'https://opentech-backend.onrender.com';
+
+console.log("🌐 API_URL configurée:", API_URL);
 
 export default API_URL;
