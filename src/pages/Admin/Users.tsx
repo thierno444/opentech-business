@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import { useNavigate } from 'react-router-dom';
+import { API_URL } from '../../config/api';  // ← AJOUT DE L'IMPORT
 
 interface AdminUser {
   _id: string;
@@ -31,7 +32,6 @@ export default function AdminUsers() {
   const { showSuccess, showError } = useNotification();
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
-  const API_URL = import.meta.env.DEV ? 'http://localhost:5000' : '';
 
   useEffect(() => {
     if (!token) {
@@ -55,34 +55,32 @@ export default function AdminUsers() {
     }
   };
 
- 
-const handleAddAdmin = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!newAdmin.email || !newAdmin.password) {
-    showError('Veuillez remplir tous les champs');
-    return;
-  }
+  const handleAddAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAdmin.email || !newAdmin.password) {
+      showError('Veuillez remplir tous les champs');
+      return;
+    }
 
-  setIsCreating(true);
-  try {
-    // Forcer le rôle à "admin" lors de l'inscription
-    await axios.post(`${API_URL}/api/users/register`, {
-      email: newAdmin.email,
-      password: newAdmin.password,
-      role: 'admin'  // Ajoutez cette ligne !
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    showSuccess('✅ Admin ajouté avec succès');
-    setShowAddModal(false);
-    setNewAdmin({ email: '', password: '' });
-    fetchUsers();
-  } catch (error: any) {
-    showError(error.response?.data?.message || 'Erreur lors de l\'ajout');
-  } finally {
-    setIsCreating(false);
-  }
-};
+    setIsCreating(true);
+    try {
+      await axios.post(`${API_URL}/api/users/register`, {
+        email: newAdmin.email,
+        password: newAdmin.password,
+        role: 'admin'
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      showSuccess('✅ Admin ajouté avec succès');
+      setShowAddModal(false);
+      setNewAdmin({ email: '', password: '' });
+      fetchUsers();
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Erreur lors de l\'ajout');
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   const handleDeleteAdmin = async (userId: string, userEmail: string) => {
     if (userEmail === 'businessopentech@gmail.com') {

@@ -21,10 +21,10 @@ import {
   Calendar,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { API_URL } from "../../config/api";  // ← AJOUT DE L'IMPORT
 
 const BRANDS = [
   { value: "", label: "Sélectionner une marque" },
-  // Marques ordinateurs
   { value: "Dell", label: "Dell" },
   { value: "HP", label: "HP" },
   { value: "Lenovo", label: "Lenovo" },
@@ -32,7 +32,6 @@ const BRANDS = [
   { value: "Macbook", label: "Apple MacBook" },
   { value: "Acer", label: "Acer" },
   { value: "MSI", label: "MSI" },
-  // Marques imprimantes (NOUVELLES)
   { value: "Canon", label: "Canon" },
   { value: "Epson", label: "Epson" },
   { value: "Brother", label: "Brother" },
@@ -46,10 +45,10 @@ const CATEGORIES = [
   { value: "E-COMMERCE", label: "🛒 E-commerce" },
   { value: "FORMATION", label: "📚 Formation" },
   { value: "DESIGN", label: "🎨 Design" },
-  { value: "DESIGN-IMPRESSION", label: "🎨 Design & Impression" },  // NOUVEAU
+  { value: "DESIGN-IMPRESSION", label: "🎨 Design & Impression" },
   { value: "MARKETING", label: "📢 Marketing Digital" },
   { value: "ORDINATEURS", label: "💻 Ordinateurs Portables" },
-  { value: "IMPRIMANTES", label: "🖨️ Imprimantes & Scanners" },     // NOUVEAU
+  { value: "IMPRIMANTES", label: "🖨️ Imprimantes & Scanners" },
   { value: "ACCESSOIRES", label: "🔌 Accessoires" },
   { value: "AUTRE", label: "📦 Autre" },
 ];
@@ -91,7 +90,6 @@ export default function ProductForm() {
 
   const fetchProduct = async () => {
     try {
-      const API_URL = import.meta.env.DEV ? 'http://localhost:5000' : '';
       const { data } = await axios.get(`${API_URL}/api/products/${id}`);
       
       setFormData({
@@ -156,7 +154,6 @@ export default function ProductForm() {
     setPreviewVideos(prev => prev.filter(vid => vid !== videoUrl));
   };
 
-  // Valider la date (doit être >= aujourd'hui)
   const isValidDate = (dateString: string) => {
     if (!dateString) return true;
     const selectedDate = new Date(dateString);
@@ -170,7 +167,6 @@ export default function ProductForm() {
     setLoading(true);
     setError("");
     
-    // Valider la date si renseignée
     if (formData.promoEndDate && !isValidDate(formData.promoEndDate)) {
       setError("La date de fin de promotion ne peut pas être dans le passé");
       setLoading(false);
@@ -178,7 +174,6 @@ export default function ProductForm() {
     }
     
     try {
-      const API_URL = import.meta.env.DEV ? 'http://localhost:5000' : '';
       const config = {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -198,7 +193,6 @@ export default function ProductForm() {
       data.append("imagesToDelete", JSON.stringify(imagesToDelete));
       data.append("videosToDelete", JSON.stringify(videosToDelete));
       data.append("promoPrice", String(formData.promoPrice || 0));
-      // Si date renseignée, on la met à 23:59:59
       if (formData.promoEndDate) {
         const endDate = new Date(formData.promoEndDate);
         endDate.setHours(23, 59, 59, 999);
@@ -244,7 +238,6 @@ export default function ProductForm() {
     });
   };
 
-  // Vérifier si promo active
   const isPromoActive = () => {
     if (!formData.promoPrice || formData.promoPrice <= 0) return false;
     if (!formData.promoEndDate) return true;
@@ -260,7 +253,6 @@ export default function ProductForm() {
     return formData.price;
   };
 
-  // Obtenir la date minimale (aujourd'hui)
   const getMinDate = () => {
     const today = new Date();
     return today.toISOString().slice(0, 10);
@@ -431,7 +423,7 @@ export default function ProductForm() {
                   </select>
                 </div>
               )}
-              {/* Section Promotion simplifiée */}
+
               <div className="border-t border-white/10 pt-6">
                 <h3 className="text-sm font-black uppercase tracking-widest text-accent-cyan mb-4 flex items-center gap-2">
                   <Percent size={14} /> Promotion
@@ -485,7 +477,6 @@ export default function ProductForm() {
                 )}
               </div>
 
-              {/* Médias */}
               <div>
                 <label className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-text-silver/40 ml-2 mb-4">
                   <Upload size={14} /> Médias (Images & Vidéos)

@@ -15,6 +15,7 @@ import {
 import { formatPrice, cn } from "../lib/utils";
 import { useCart } from "../context/CartContext";
 import { useNotification } from "../context/NotificationContext";
+import { API_URL } from "../config/api";  // ← AJOUT DE L'IMPORT
 
 interface Product {
   _id: string;
@@ -55,7 +56,8 @@ export default function Shop() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const API_URL = 'http://localhost:5000';
+        // SUPPRIMER LA DÉCLARATION LOCALE DE API_URL
+        // const API_URL = 'http://localhost:5000';
         const { data } = await axios.get(`${API_URL}/api/products`);
         setProducts(data);
       } catch (error) {
@@ -452,12 +454,14 @@ export default function Shop() {
                               totalAmount: currentPrice,
                               message: `Commande du produit : ${product.name}`,
                             };
-                            await axios.post('http://localhost:5000/api/orders', orderData);
+                            // ← UTILISER API_URL ICI AUSSI
+                            await axios.post(`${API_URL}/api/orders`, orderData);
                             showSuccess(`✨ Commande créée ! Total: ${formatPrice(currentPrice)}`);
                             setTimeout(() => {
                               sendWhatsAppMessage("221766560258", `Bonjour OpenTech Business, je souhaite commander : ${product.name} pour ${formatPrice(currentPrice)}`);
                             }, 1000);
                           } catch (error: any) {
+                            console.error("Erreur commande:", error);
                             showError("❌ Erreur lors de la commande");
                           } finally {
                             setLoadingProduct(null);

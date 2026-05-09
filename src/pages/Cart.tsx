@@ -9,6 +9,7 @@ import { useNotification } from '../context/NotificationContext';
 import { useUser } from '../context/UserContext';
 import QRCodePayment from '../components/QRCodePayment';
 import ClientInfoForm from '../components/ClientInfoForm';
+import { API_URL } from '../config/api';  // ← AJOUT DE L'IMPORT
 
 const sendWhatsAppMessage = (phoneNumber: string, message: string) => {
   const cleanPhone = phoneNumber.replace('+', '').replace(/\s/g, '');
@@ -56,7 +57,6 @@ export default function Cart() {
       return null;
     }
 
-    const API_URL = 'http://localhost:5000';
     const items = cart.map(item => ({
       name: item.name,
       price: item.price,
@@ -89,7 +89,10 @@ export default function Cart() {
   };
 
   const handleCheckoutWhatsApp = async () => {
+    setIsCheckingOut(true);
     const orderId = await createOrder();
+    setIsCheckingOut(false);
+    
     if (orderId) {
       showSuccess(`✨ Commande créée ! Total: ${formatPrice(totalPrice)}`);
       clearCart();

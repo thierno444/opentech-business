@@ -21,6 +21,7 @@ import { formatPrice, cn } from '../../lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNotification } from '../../context/NotificationContext';
+import { API_URL } from '../../config/api';  // ← AJOUT DE L'IMPORT
 
 // Composant Clock
 function Clock({ size }: { size: number }) {
@@ -46,7 +47,8 @@ export default function Dashboard() {
   const token = localStorage.getItem('token');
   const { showSuccess, showError } = useNotification();
 
-  const API_URL = import.meta.env.DEV ? 'http://localhost:5000' : '';
+  // SUPPRIMER CETTE LIGNE
+  // const API_URL = import.meta.env.DEV ? 'http://localhost:5000' : '';
 
   useEffect(() => {
     if (!token) {
