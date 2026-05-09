@@ -1,0 +1,26 @@
+# render.yaml
+services:
+  # Service Backend API
+  - type: web
+    name: opentech-backend
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run start:backend
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: PORT
+        value: 10000
+    healthCheckPath: /api/health
+
+  # Service Frontend Static (optionnel sur Render)
+  # Ou vous gardez Netlify pour le frontend
