@@ -3,21 +3,10 @@
   publish = "dist"
 
 [build.environment]
-  NODE_VERSION = "20"
+  VITE_API_URL = "https://opentech-business.onrender.com"
 
-# Redirections pour SPA (React Router)
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
+  from = "/api/*"
+  to = "https://opentech-business.onrender.com/api/:splat"
   status = 200
-
-# Headers de cache pour les assets
-[[headers]]
-  for = "/assets/*"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-[[headers]]
-  for = "/images/*"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
+  force = true
