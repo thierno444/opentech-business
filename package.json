@@ -17,7 +17,9 @@
     "start:backend": "tsx server.ts",
     "start": "tsx server.ts",
     "preview": "vite preview",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "migrate:images": "tsx scripts/migrate-existing-images.ts"
+
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
@@ -27,6 +29,7 @@
     "@vitejs/plugin-react": "^5.0.4",
     "axios": "^1.14.0",
     "bcryptjs": "^3.0.3",
+    "cloudinary": "^1.41.3",
     "clsx": "^2.1.1",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
@@ -39,6 +42,7 @@
     "mongoose": "^9.3.3",
     "motion": "^12.23.24",
     "multer": "^2.1.1",
+    "multer-storage-cloudinary": "^4.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-helmet-async": "^3.0.0",
@@ -47,7 +51,7 @@
     "vite": "^6.2.0"
   },
   "devDependencies": {
-"@types/express": "^4.17.21",
+    "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "autoprefixer": "^10.4.21",
     "concurrently": "^8.2.2",
@@ -55,5 +59,4 @@
     "tsx": "^4.21.0",
     "typescript": "~5.8.2"
   }
-  
 }

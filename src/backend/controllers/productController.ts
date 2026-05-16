@@ -34,17 +34,23 @@ export const createProduct = async (req: Request, res: Response) => {
     let images: string[] = [];
     let videos: string[] = [];
 
-    if ((req as any).files && (req as any).files.length > 0) {
-      for (const file of (req as any).files) {
-        const filePath = `/uploads/${file.filename}`;
+    // Récupération des fichiers uploadés
+    const files = (req as any).files;
+    if (files && files.length > 0) {
+      for (const file of files) {
+        // L'URL est dans file.path (Cloudinary)
+        const fileUrl = file.path;
+        console.log(`📁 Upload réussi: ${file.originalname} -> ${fileUrl.substring(0, 60)}...`);
+        
         if (file.mimetype.startsWith('image/')) {
-          images.push(filePath);
+          images.push(fileUrl);
         } else if (file.mimetype.startsWith('video/')) {
-          videos.push(filePath);
+          videos.push(fileUrl);
         }
       }
     }
 
+    // Parser les features
     let parsedFeatures = features;
     if (typeof features === "string") {
       try {
@@ -58,7 +64,6 @@ export const createProduct = async (req: Request, res: Response) => {
     let parsedPromoEndDate = null;
     if (promoEndDate && promoEndDate !== "") {
       parsedPromoEndDate = new Date(promoEndDate);
-      // Fixer à 23:59:59 pour que la promo soit valable toute la journée
       parsedPromoEndDate.setHours(23, 59, 59, 999);
     }
 
@@ -76,10 +81,11 @@ export const createProduct = async (req: Request, res: Response) => {
       promoEndDate: parsedPromoEndDate,
     });
 
+    console.log(`✅ Produit créé: ${name} avec ${images.length} image(s)`);
     res.status(201).json(product);
   } catch (err) {
-    console.error("Erreur createProduct:", err);
-    res.status(400).json({ message: "Données produit invalides" });
+    console.error("❌ Erreur createProduct:", err);
+    res.status(400).json({ message: "Données produit invalides", error: err });
   }
 };
 

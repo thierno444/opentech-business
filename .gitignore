@@ -55,4 +55,5 @@ temp/
 *.pid
 *.seed
 *.pid.lock
-EOF
+EOFuploads/
+uploads_backup/
