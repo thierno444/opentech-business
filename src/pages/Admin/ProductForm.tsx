@@ -21,7 +21,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { API_URL } from "../../config/api";  // ← AJOUT DE L'IMPORT
+import { API_URL } from "../../config/api";
 
 const BRANDS = [
   { value: "", label: "Sélectionner une marque" },
@@ -205,16 +205,20 @@ export default function ProductForm() {
         data.append("media", file);
       });
 
+      // ✅ CORRECTION : Utiliser API_URL pour toutes les requêtes
+      let response;
       if (id) {
-        await axios.put(`${API_URL}/api/products/${id}`, data, config);
+        response = await axios.put(`${API_URL}/api/products/${id}`, data, config);
       } else {
-        await axios.post(`${API_URL}/api/products`, data, config);
+        response = await axios.post(`${API_URL}/api/products`, data, config);
       }
 
+      console.log("✅ Réponse:", response.data);
       setSuccess(true);
       setTimeout(() => navigate("/admin"), 2000);
     } catch (err: any) {
-      console.error(err);
+      console.error("❌ Erreur détaillée:", err);
+      console.error("❌ Réponse erreur:", err.response?.data);
       setError(err.response?.data?.message || "Erreur lors de l'enregistrement");
     } finally {
       setLoading(false);
