@@ -8,10 +8,14 @@ export default defineConfig(({ mode }) => {
   
   return {
     plugins: [react(), tailwindcss()],
-    base: './',  // Important pour Netlify
+    base: './',
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-      'process.env.VITE_API_URL': JSON.stringify(env.VITE_API_URL),
+      'import.meta.env.VITE_API_URL': JSON.stringify(
+        mode === 'production' 
+          ? 'https://opentech-business.onrender.com'
+          : env.VITE_API_URL || 'http://localhost:5000'
+      ),
     },
     resolve: {
       alias: {
