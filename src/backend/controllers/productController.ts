@@ -34,13 +34,12 @@ export const createProduct = async (req: Request, res: Response) => {
     let images: string[] = [];
     let videos: string[] = [];
 
-    // Récupération des fichiers uploadés
     const files = (req as any).files;
     if (files && files.length > 0) {
       for (const file of files) {
-        // L'URL est dans file.path (Cloudinary)
+        // Cloudinary stocke l'URL dans file.path
         const fileUrl = file.path;
-        console.log(`📁 Upload réussi: ${file.originalname} -> ${fileUrl.substring(0, 60)}...`);
+        console.log(`📁 Upload: ${file.originalname} -> ${fileUrl.substring(0, 80)}...`);
         
         if (file.mimetype.startsWith('image/')) {
           images.push(fileUrl);
@@ -50,7 +49,6 @@ export const createProduct = async (req: Request, res: Response) => {
       }
     }
 
-    // Parser les features
     let parsedFeatures = features;
     if (typeof features === "string") {
       try {
@@ -60,7 +58,6 @@ export const createProduct = async (req: Request, res: Response) => {
       }
     }
 
-    // Gérer la date de fin de promotion
     let parsedPromoEndDate = null;
     if (promoEndDate && promoEndDate !== "") {
       parsedPromoEndDate = new Date(promoEndDate);
@@ -111,7 +108,7 @@ export const updateProduct = async (req: Request, res: Response) => {
       promoEndDate 
     } = req.body;
 
-    // Gérer les images
+    // Gérer les images existantes
     let finalImages: string[] = [];
     if (existingImages) {
       try {
@@ -123,6 +120,7 @@ export const updateProduct = async (req: Request, res: Response) => {
       finalImages = [...product.images];
     }
     
+    // Gérer les vidéos existantes
     let finalVideos: string[] = [];
     if (existingVideos) {
       try {
@@ -134,22 +132,32 @@ export const updateProduct = async (req: Request, res: Response) => {
       finalVideos = [...product.videos];
     }
     
-    if ((req as any).files && (req as any).files.length > 0) {
-      for (const file of (req as any).files) {
-        const filePath = `/uploads/${file.filename}`;
+    // 🔥 CORRECTION : Utiliser Cloudinary pour les nouveaux fichiers
+    const newFiles = (req as any).files;
+    if (newFiles && newFiles.length > 0) {
+      for (const file of newFiles) {
+        // Cloudinary URL est dans file.path
+        const fileUrl = file.path;
+        console.log(`📁 Nouveau fichier: ${file.originalname} -> ${fileUrl.substring(0, 60)}...`);
+        
         if (file.mimetype.startsWith('image/')) {
-          finalImages.push(filePath);
+          finalImages.push(fileUrl);
         } else if (file.mimetype.startsWith('video/')) {
-          finalVideos.push(filePath);
+          finalVideos.push(fileUrl);
         }
       }
     }
 
-    const deleteFiles = async (filesToDelete: string[]) => {
+    // Supprimer les fichiers physiquement (pour les fichiers locaux)
+    const deleteLocalFiles = async (filesToDelete: string[]) => {
       for (const filePath of filesToDelete) {
-        const fullPath = path.join(process.cwd(), filePath);
-        if (fs.existsSync(fullPath)) {
-          fs.unlinkSync(fullPath);
+        // Ne supprimer que les fichiers locaux (ceux qui commencent par /uploads/)
+        if (filePath && filePath.startsWith('/uploads/')) {
+          const fullPath = path.join(process.cwd(), filePath);
+          if (fs.existsSync(fullPath)) {
+            fs.unlinkSync(fullPath);
+            console.log(`🗑️ Supprimé: ${filePath}`);
+          }
         }
       }
     };
@@ -161,7 +169,7 @@ export const updateProduct = async (req: Request, res: Response) => {
       } catch {
         toDelete = Array.isArray(imagesToDelete) ? imagesToDelete : [];
       }
-      await deleteFiles(toDelete);
+      await deleteLocalFiles(toDelete);
     }
 
     if (videosToDelete) {
@@ -171,7 +179,7 @@ export const updateProduct = async (req: Request, res: Response) => {
       } catch {
         toDelete = Array.isArray(videosToDelete) ? videosToDelete : [];
       }
-      await deleteFiles(toDelete);
+      await deleteLocalFiles(toDelete);
     }
 
     let parsedFeatures = features;
@@ -211,10 +219,11 @@ export const updateProduct = async (req: Request, res: Response) => {
     }
 
     const updated = await product.save();
+    console.log(`✅ Produit mis à jour: ${updated.name}, Images: ${updated.images.length}`);
     res.json(updated);
   } catch (err) {
-    console.error("Erreur updateProduct:", err);
-    res.status(400).json({ message: "Erreur lors de la mise à jour" });
+    console.error("❌ Erreur updateProduct:", err);
+    res.status(400).json({ message: "Erreur lors de la mise à jour", error: err });
   }
 };
 
@@ -224,20 +233,25 @@ export const deleteProduct = async (req: Request, res: Response) => {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ message: "Produit non trouvé" });
     
+    // Supprimer les fichiers locaux associés (Cloudinary garde les fichiers)
     if (product.images && product.images.length > 0) {
       for (const imgPath of product.images) {
-        const fullPath = path.join(process.cwd(), imgPath);
-        if (fs.existsSync(fullPath)) {
-          fs.unlinkSync(fullPath);
+        if (imgPath && imgPath.startsWith('/uploads/')) {
+          const fullPath = path.join(process.cwd(), imgPath);
+          if (fs.existsSync(fullPath)) {
+            fs.unlinkSync(fullPath);
+          }
         }
       }
     }
     
     if (product.videos && product.videos.length > 0) {
       for (const videoPath of product.videos) {
-        const fullPath = path.join(process.cwd(), videoPath);
-        if (fs.existsSync(fullPath)) {
-          fs.unlinkSync(fullPath);
+        if (videoPath && videoPath.startsWith('/uploads/')) {
+          const fullPath = path.join(process.cwd(), videoPath);
+          if (fs.existsSync(fullPath)) {
+            fs.unlinkSync(fullPath);
+          }
         }
       }
     }
