@@ -1,3 +1,5 @@
+// server.ts - VERSION CORRIGÉE
+
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -7,7 +9,7 @@ import mongoose from "mongoose";
 import cors from "cors";
 import fs from "fs";
 import multer from "multer";
-import { cloudinaryStorage } from "./src/backend/config/cloudinary.ts";
+import { cloudinaryStorage } from "./src/backend/config/cloudinary.js";  // ← UNE SEULE FOIS
 
 import {
   getProducts,
@@ -28,7 +30,7 @@ const PORT = process.env.PORT || 5000;
 
 // ============ MIDDLEWARE ============
 
-// Configuration CORS (important pour Netlify)
+// Configuration CORS
 const allowedOrigins = [
   'https://opentech-business.netlify.app',
   'https://opentech.netlify.app',
@@ -55,19 +57,16 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// ============ UPLOADS AVEC CLOUDINARY ============
-
 // ============ UPLOADS ============
-import { cloudinaryStorage } from "./src/backend/config/cloudinary.js";
 
 // Dossier local pour compatibilité
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 app.use("/uploads", express.static(uploadDir));
 
-// Configuration Multer
+// Configuration Multer avec Cloudinary - IMPORTANT
 const upload = multer({ 
-  storage: cloudinaryStorage,
+  storage: cloudinaryStorage,  // ← Utilise Cloudinary
   limits: { fileSize: 50 * 1024 * 1024, files: 20 },
 });
 
