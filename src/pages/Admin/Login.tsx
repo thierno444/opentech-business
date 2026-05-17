@@ -12,6 +12,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { API_URL } from '../../config/api';  // ← AJOUTER CETTE LIGNE
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -26,7 +27,8 @@ export default function Login() {
     setLoading(true);
     setError('');
     try {
-      const { data } = await axios.post('/api/users/login', { email, password });
+      // ✅ CORRECTION : Utiliser API_URL
+      const { data } = await axios.post(`${API_URL}/api/users/login`, { email, password });
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data));
       navigate('/admin');
