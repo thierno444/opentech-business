@@ -9,12 +9,13 @@ import { useNotification } from '../context/NotificationContext';
 import { useUser } from '../context/UserContext';
 import QRCodePayment from '../components/QRCodePayment';
 import ClientInfoForm from '../components/ClientInfoForm';
-import { API_URL } from '../config/api';  // ← AJOUT DE L'IMPORT
+import { API_URL } from '../config/api';
 
 const sendWhatsAppMessage = (phoneNumber: string, message: string) => {
   const cleanPhone = phoneNumber.replace('+', '').replace(/\s/g, '');
   const encodedMessage = encodeURIComponent(message);
   const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
+  console.log("📱 Ouverture WhatsApp:", whatsappUrl);
   window.open(whatsappUrl, '_blank');
 };
 
@@ -31,7 +32,6 @@ export default function Cart() {
     phone: ''
   });
 
-  // Charger les infos utilisateur au chargement
   useEffect(() => {
     if (user) {
       setClientInfo({
@@ -90,19 +90,28 @@ export default function Cart() {
 
   const handleCheckoutWhatsApp = async () => {
     setIsCheckingOut(true);
+    
+    // Récupérer les informations du panier avant de créer la commande
+    const currentCart = [...cart];
+    const currentTotal = totalPrice;
+    const currentClient = { ...clientInfo };
+    
     const orderId = await createOrder();
-    setIsCheckingOut(false);
     
     if (orderId) {
-      showSuccess(`✨ Commande créée ! Total: ${formatPrice(totalPrice)}`);
+      showSuccess(`✨ Commande créée ! Total: ${formatPrice(currentTotal)}`);
       clearCart();
       
-      setTimeout(() => {
-        const itemsList = cart.map(item => `- ${item.name} (x${item.quantity}) : ${formatPrice(item.price * item.quantity)}`).join('\n');
-        const message = `Bonjour OpenTech Business, je souhaite valider ma commande :\n\n${itemsList}\n\nTotal : ${formatPrice(totalPrice)}\n\nClient: ${clientInfo.name}\nTél: ${clientInfo.phone}\n\nMerci de me recontacter pour le paiement.`;
-        sendWhatsAppMessage("221766560258", message);
-      }, 1000);
+      // Construire le message WhatsApp
+      const itemsList = currentCart.map(item => `- ${item.name} (x${item.quantity}) : ${formatPrice(item.price * item.quantity)}`).join('\n');
+      const message = `Bonjour OpenTech Business, je souhaite valider ma commande :\n\n${itemsList}\n\nTotal : ${formatPrice(currentTotal)}\n\nClient: ${currentClient.name}\nTél: ${currentClient.phone}\n\nMerci de me recontacter pour le paiement.`;
+      
+      // Ouvrir WhatsApp immédiatement
+      console.log("📱 Envoi de la commande WhatsApp...");
+      sendWhatsAppMessage("221766560258", message);
     }
+    
+    setIsCheckingOut(false);
   };
 
   const handleQRPayment = async () => {
