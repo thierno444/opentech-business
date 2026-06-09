@@ -294,7 +294,6 @@ export default function Shop() {
                     ))}
                   </div>
                 </div>
-
                 {/* 🔧 CORRECTION : Filtre par marque - visible seulement si une catégorie spécifique est sélectionnée ET qu'il y a des marques */}
                 {selectedCategory !== "All" && brands.length > 1 && (
                   <div>
